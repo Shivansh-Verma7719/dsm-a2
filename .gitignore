@@ -11,3 +11,4 @@ data/
 *.fdb_latexmk
 
 .env
+.DS_Store

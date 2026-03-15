@@ -12,3 +12,6 @@ data/
 
 .env
 .DS_Store
+
+*.md
+sq.py

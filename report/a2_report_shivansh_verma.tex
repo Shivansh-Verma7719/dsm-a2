@@ -33,7 +33,7 @@ python3 etl/load_yelp.py --data-dir ../data
 \subsection*{2. Collection Structure and Inter-relations}
 The schema was modeled strictly based on the relational and analytical needs of the provided dataset parameters. Instead of mimicking the six source JSON files 1:1, the design separates bounded attributes (embedded) from unbounded elements (referenced) to prevent hitting MongoDB's 16MB document size limit as relationships scale.
 
-Below is an overview of the five primary collections, their respective roles, document identifiers, and referential structures.
+Below is an overview of the six primary collections, their respective roles, document identifiers, and referential structures.
 
 \subsubsection*{Businesses Collection}
 \textbf{Purpose:} Acts as the central anchor for the database, housing core attributes, categorizations, and static metadata for various commercial locations.\\
@@ -64,5 +64,56 @@ Below is an overview of the five primary collections, their respective roles, do
 \textbf{Identifier Field:} \texttt{\_id} (Auto-generated assigned by MongoDB).\\
 \textbf{Linking Relationships:} Utilizes distinct \texttt{user\_id} and \texttt{business\_id} fields to bridge across the Users and Businesses collections.\\
 \textbf{Key Fields:} \texttt{text}, \texttt{date} (Date object), \texttt{compliment\_count}. Like reviews, tips are unconstrained and inherently must maintain a normalized cross-reference.
+
+\subsubsection*{Photos Collection}
+\textbf{Purpose:} Contains metadata and classifications for user-uploaded images associated with a business.\\
+\textbf{Identifier Field:} \texttt{\_id} (String, mapped directly from \texttt{photo\_id}).\\
+\textbf{Linking Relationships:} The \texttt{business\_id} field provides a N:1 referenced mapping directly to the Businesses collection.\\
+\textbf{Key Fields:} \texttt{caption}, \texttt{label} (String classification). Standalone referencing prevents massive accumulation of string URLs or binary blobs within the base business document.
+
+\subsection*{3. Schema Design Justifications (Embedding vs. Referencing)}
+
+\subsubsection*{(a) Relationship Design Choices}
+\begin{itemize}
+    \item \textbf{Business $\rightarrow$ Attributes, Categories, Hours (Embedded):} These entities inherently map 1:1 to a specific business. Their data volume is strictly bounded (e.g., there are only 7 days in a week for hours, and a finite set of attributes). Embedding these properties prevents expensive cross-collection joins just to retrieve basic business profile information.
+    \item \textbf{User $\rightarrow$ Friends (Referenced):} The Yelp social graph is massive and highly interconnected (N:M). Embedding a user's friends list as full documents would exponentially duplicate data. Even embedding an array of \texttt{user\_id} strings risks exceeding MongoDB's 16MB document size limit for highly active "elite" users. Thus, referencing is strictly required.
+    \item \textbf{Business $\rightarrow$ Reviews \& Checkins (Referenced):} Yelp reviews and checkins grow unboundedly over time (1:N mapping). Embedding thousands of reviews directly inside a single \texttt{business} document would inevitably breach the 16MB limit, severely degrading read/write performance long before failing entirely. Keeping these in standalone collections referencing \texttt{business\_id} is the only scalable approach.
+    \item \textbf{User $\rightarrow$ Reviews \& Tips (Referenced):} Similar to businesses, a highly active user can generate an unbounded number of reviews and tips over their tenure. These must uniquely exist in their own collections, maintaining references back to the contributing \texttt{user\_id}.
+\end{itemize}
+
+\subsubsection*{(b) Read and Write Trade-offs}
+\textbf{Embedding Trade-offs (Business Attributes/Categories/Hours):}
+\begin{itemize}
+    \item \textbf{Read Advantage:} Yields unmatched read performance. A single query to the Businesses collection retrieves the entire business profile, navigating latency from \texttt{\$lookup} joins.
+    \item \textbf{Write Disadvantage:} Granular updates (like changing a single attribute) require rewriting the entire embedded object mapping. However, since business static attributes rarely change, this write penalty is highly negligible.
+\end{itemize}
+
+\textbf{Referencing Trade-offs (Reviews/Checkins/Friends):}
+\begin{itemize}
+    \item \textbf{Write Advantage:} Excellent write performance and infinite scalability. When a new review is posted, it simply inserts a new document in the Reviews collection without ever locking or modifying the massive parent Business or User document.
+    \item \textbf{Read Disadvantage:} Requires application-level joins or aggregation pipeline \texttt{\$lookups}. Fetching a business alongside all its reviews demands querying multiple collections, increasing memory usage and retrieval latency. This trade-off is mitigated by strategic indexing.
+\end{itemize}
+
+\subsubsection*{(c) Indexing Strategy for Section 4 Queries}
+To efficiently execute the analytical queries mapped out in Section 4 of the assignment, the following targeted indexes were established inside the ETL loading script:
+
+\begin{enumerate}
+    \item \texttt{db.businesses.createIndex(\{ "city": 1, "categories": 1 \})}
+    \begin{itemize}
+        \item \textbf{Justification:} Section 4 Queries 1 \& 2 strictly demand isolating specific cities and business categories to compute safety and ratings. This compound index allows MongoDB to instantly filter down the 150,000+ businesses dataset without triggering an expensive full collection scan (COLLSCAN).
+    \end{itemize}
+    \item \texttt{db.reviews.createIndex(\{ "business\_id": 1, "date": 1 \})}
+    \begin{itemize}
+        \item \textbf{Justification:} Query 2 analyzes rating trends \textit{over time}. This compound index supports extremely fast sequential retrievals natively sorted by date for any given business, removing the need for an expensive in-memory sort stage during the aggregation pipeline.
+    \end{itemize}
+    \item \texttt{db.reviews.createIndex(\{ "user\_id": 1 \})}
+    \begin{itemize}
+        \item \textbf{Justification:} Queries 5 \& 6 require aggregating a user's tenure and elite status against their review behavior (average review length and usefulness ratio). This index enables rapid resolution of all reviews mapped to a specific user during a \texttt{\$lookup} join originating from the Users collection without scanning 7 million generic reviews.
+    \end{itemize}
+    \item \texttt{db.checkins.createIndex(\{ "\_id": 1 \})} \textit{(Auto-generated mapped from business\_id)}
+    \begin{itemize}
+        \item \textbf{Justification:} \texttt{checkins} use \texttt{business\_id} directly as their explicit \texttt{\_id}, granting them an automatic, uniquely optimal index at scale. For Query 7 (correlating check-in visit frequency with business star ratings), we natively rely on this \texttt{\_id} index to flawlessly execute a 1:1 optimal pipeline join with the \texttt{businesses} collection on the same key.
+    \end{itemize}
+\end{enumerate}
 
 \end{document}

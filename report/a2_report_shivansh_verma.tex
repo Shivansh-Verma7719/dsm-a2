@@ -116,4 +116,45 @@ To efficiently execute the analytical queries mapped out in Section 4 of the ass
     \end{itemize}
 \end{enumerate}
 
+\section{Neo4j Property Graph Model}
+
+\subsection*{1. Graph Schema Design: Nodes \& Properties}
+The Yelp dataset contains dense, multi-hop networking correlations (like Users having Friends who review Businesses in shared Categories). To maximize Cypher traversal performance, the property graph was modeled utilizing four primary Node representations:
+
+\begin{itemize}
+    \item \textbf{(User) Node}\\
+    \textit{Properties:} \texttt{id} (String, Indexed UUID), \texttt{name} (String), \texttt{review\_count} (Integer), \texttt{yelping\_since} (Date Type), \texttt{average\_stars} (Float).
+    
+    \item \textbf{(Business) Node}\\
+    \textit{Properties:} \texttt{id} (String, Indexed UUID), \texttt{name} (String), \texttt{city} (String), \texttt{state} (String), \texttt{stars} (Float), \texttt{review\_count} (Integer).
+    
+    \item \textbf{(Review) Node}\\
+    \textit{Properties:} \texttt{id} (String, Indexed UUID), \texttt{stars} (Integer), \texttt{date} (Date Type), \texttt{text} (String), \texttt{useful} (Integer).
+    
+    \item \textbf{(Category) Node}\\
+    \textit{Properties:} \texttt{name} (String, Indexed, Unique). (Note: By extracting string arrays from JSON and upgrading them into explicit `Category` nodes, we can trivially query ``all users who reviewed businesses in X category'' using simple path traversals).
+\end{itemize}
+
+\subsection*{2. Graph Schema Design: Relationships}
+\begin{itemize}
+    \item \texttt{(User)-[:FRIENDS\_WITH]->(User)}\\
+    \textit{Direction:} Undirected (bi-directional implicit). Represents the N:M social web between users.
+    \item \texttt{(User)-[:WROTE]->(Review)}\\
+    \textit{Direction:} Directed. Binds a user payload specifically to the rating document.
+    \item \texttt{(Review)-[:REVIEWS]->(Business)}\\
+    \textit{Direction:} Directed. Assigns the sentiment payload explicitly to the localized entity.
+    \item \texttt{(Business)-[:IN\_CATEGORY]->(Category)}\\
+    \textit{Direction:} Directed. Defines the classification of a commercial entity (e.g., 'Restaurants', 'Active Life').
+\end{itemize}
+
+\subsection*{3. Modelling Choices \& Handling Non-Graph Aspects}
+
+\textbf{Treating Reviews as Nodes rather than Relationships:}\\
+Intuitively, a review appears functionally identical to an edge: \texttt{(User)-[:REVIEWED \{stars: 5, date: '...'\}]->(Business)}. However, directly injecting massive payloads (like paragraphs of raw string text and interaction metrics such as \texttt{useful} counts) into edge properties forces the database to evaluate heavy string clusters during large-scale network traversals like Community Detection or PageRank pathing. By extracting the Review into its own definitive \textit{Node}, it maintains a lighter relationship bridging \texttt{User $\rightarrow$ WROTE $\rightarrow$ Review $\rightarrow$ REVIEWS $\rightarrow$ Business}.
+
+\textbf{Omission of Deeply Nested Document Blocks:}\\
+Property Graphs strictly require relationships to be bound to flat, scalar nodes. Deeply nested associative JSON arrays (like a business's operational \texttt{hours} map spanning sub-dictionaries of days mapped to time windows, or intricate nested \texttt{attributes}) do not map naturally to nodes or edges without creating severe fragmentation (e.g., mapping a dedicated \texttt{Monday} node).
+
+Because spatial/temporal routing queries based on store opening hours are notoriously better suited to Document stores (like MongoDB parsing embedded JSON), complex dictionary fields like \texttt{hours} were intentionally omitted from the graph translation, prioritizing exclusively the relational ties driving the analytical graph queries defined in Section V.
+
 \end{document}

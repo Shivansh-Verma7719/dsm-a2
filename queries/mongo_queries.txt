@@ -1,4 +1,6 @@
-Q1. Identify Safest/Least-Safe Cities
+// ==========================================
+// Q1A. Safest/Least-Safe Cities (volume-adjusted)
+// ==========================================
 
 db.businesses.aggregate(
 [
@@ -6,6 +8,9 @@ db.businesses.aggregate(
         "$match": {
             "review_count": {
                 "$gte": 50
+            },
+            "city": {
+                "$ne": ""
             }
         }
     },
@@ -31,70 +36,104 @@ db.businesses.aggregate(
         }
     },
     {
+        "$addFields": {
+            "weighted_rating": {
+                "$multiply": [
+                    "$avg_rating",
+                    {
+                        "$ln": {
+                            "$add": [
+                                "$total_reviews",
+                                1
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
         "$sort": {
-            "avg_rating": -1
+            "weighted_rating": -1
         }
     }
 ]
 );
 
-
-- RESULTS 
-{'_id': 'Arabi', 'avg_rating': 4.3, 'total_businesses': 5, 'total_reviews': 453}
-{'_id': 'Merchantville',
- 'avg_rating': 4.285714285714286,
- 'total_businesses': 7,
- 'total_reviews': 827}
-{'_id': 'Tampa Bay',
- 'avg_rating': 4.230769230769231,
- 'total_businesses': 13,
- 'total_reviews': 1302}
-{'_id': 'Westwego',
- 'avg_rating': 4.2,
- 'total_businesses': 5,
- 'total_reviews': 951}
-{'_id': 'Indian Shores',
- 'avg_rating': 4.181818181818182,
- 'total_businesses': 11,
- 'total_reviews': 2695}
-{'_id': 'South Pasadena',
- 'avg_rating': 4.166666666666667,
- 'total_businesses': 6,
- 'total_reviews': 1396}
-{'_id': 'Tierra Verde',
- 'avg_rating': 4.125,
- 'total_businesses': 8,
- 'total_reviews': 1615}
-{'_id': 'Gibsonton',
- 'avg_rating': 4.1,
- 'total_businesses': 5,
- 'total_reviews': 543}
-{'_id': 'Oaklyn',
- 'avg_rating': 4.1,
- 'total_businesses': 5,
- 'total_reviews': 399}
-{'_id': 'Affton',
- 'avg_rating': 4.1,
- 'total_businesses': 5,
- 'total_reviews': 418}
+/* ----- RESULTS -----
+{'_id': 'New Orleans',
+ 'avg_rating': 3.8875908618899273,
+ 'total_businesses': 1926,
+ 'total_reviews': 549957,
+ 'weighted_rating': 51.38461005453795}
+{'_id': 'Philadelphia',
+ 'avg_rating': 3.7489015249418456,
+ 'total_businesses': 3869,
+ 'total_reviews': 760496,
+ 'weighted_rating': 50.766602672283334}
+{'_id': 'Santa Barbara',
+ 'avg_rating': 3.9722502522704337,
+ 'total_businesses': 991,
+ 'total_reviews': 216274,
+ 'weighted_rating': 48.79633770696641}
+{'_id': 'Nashville',
+ 'avg_rating': 3.735191637630662,
+ 'total_businesses': 1722,
+ 'total_reviews': 354854,
+ 'weighted_rating': 47.73374906196958}
+{'_id': 'Indianapolis',
+ 'avg_rating': 3.8297671491504093,
+ 'total_businesses': 1589,
+ 'total_reviews': 256180,
+ 'weighted_rating': 47.69453946316213}
+{'_id': 'Tampa',
+ 'avg_rating': 3.734383342231714,
+ 'total_businesses': 1873,
+ 'total_reviews': 327417,
+ 'weighted_rating': 47.42290762740291}
+{'_id': 'Reno',
+ 'avg_rating': 3.6886856368563685,
+ 'total_businesses': 1476,
+ 'total_reviews': 262635,
+ 'weighted_rating': 46.029353436044836}
+{'_id': 'Tucson',
+ 'avg_rating': 3.6477207155222158,
+ 'total_businesses': 1733,
+ 'total_reviews': 269785,
+ 'weighted_rating': 45.61614948019459}
+{'_id': 'Saint Louis',
+ 'avg_rating': 3.731244064577398,
+ 'total_businesses': 1053,
+ 'total_reviews': 187522,
+ 'weighted_rating': 45.30348480770583}
+{'_id': 'Saint Petersburg',
+ 'avg_rating': 3.8644578313253013,
+ 'total_businesses': 332,
+ 'total_reviews': 56392,
+ 'weighted_rating': 42.277556342841855}
 ... (and 308 more results)
+Execution time: 0.80s
+---------------------- */
 
 
-
-
-Q1. Identify Safest/Least-Safe Categories
+// ==========================================
+// Q1B. Safest/Least-Safe Categories (volume-adjusted)
+// ==========================================
 
 db.businesses.aggregate(
 [
     {
-        "$unwind": "$categories"
-    },
-    {
         "$match": {
             "review_count": {
                 "$gte": 50
+            },
+            "categories": {
+                "$type": "array"
             }
         }
+    },
+    {
+        "$unwind": "$categories"
     },
     {
         "$group": {
@@ -118,91 +157,130 @@ db.businesses.aggregate(
         }
     },
     {
+        "$addFields": {
+            "weighted_rating": {
+                "$multiply": [
+                    "$avg_rating",
+                    {
+                        "$ln": {
+                            "$add": [
+                                "$total_reviews",
+                                1
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
         "$sort": {
-            "avg_rating": -1
+            "weighted_rating": -1
         }
     }
 ]
 );
 
-
-- RESULTS
-{'_id': 'Bike tours',
- 'avg_rating': 4.85,
- 'total_businesses': 10,
- 'total_reviews': 1432}
-{'_id': 'Wine Tours',
- 'avg_rating': 4.703703703703703,
- 'total_businesses': 27,
- 'total_reviews': 4379}
-{'_id': 'Home Window Tinting',
- 'avg_rating': 4.681818181818182,
- 'total_businesses': 11,
- 'total_reviews': 891}
-{'_id': 'Team Building Activities',
- 'avg_rating': 4.651515151515151,
- 'total_businesses': 33,
- 'total_reviews': 3278}
-{'_id': 'Session Photography',
- 'avg_rating': 4.65,
- 'total_businesses': 10,
- 'total_reviews': 904}
-{'_id': 'Home Inspectors',
- 'avg_rating': 4.642857142857143,
- 'total_businesses': 14,
- 'total_reviews': 1321}
-{'_id': 'Watch Repair',
- 'avg_rating': 4.617647058823529,
- 'total_businesses': 17,
- 'total_reviews': 1697}
-{'_id': 'Jewelry Repair',
- 'avg_rating': 4.608695652173913,
- 'total_businesses': 23,
- 'total_reviews': 1746}
-{'_id': 'Window Washing',
- 'avg_rating': 4.590909090909091,
- 'total_businesses': 11,
- 'total_reviews': 764}
-{'_id': 'Rafting/Kayaking',
- 'avg_rating': 4.583333333333333,
- 'total_businesses': 18,
- 'total_reviews': 2125}
+/* ----- RESULTS -----
+{'_id': 'Restaurants',
+ 'avg_rating': 3.7350768034221273,
+ 'total_businesses': 20572,
+ 'total_reviews': 3937883,
+ 'weighted_rating': 56.72145184177387}
+{'_id': 'Food',
+ 'avg_rating': 3.8922496482926205,
+ 'total_businesses': 7819,
+ 'total_reviews': 1397373,
+ 'weighted_rating': 55.07574245096665}
+{'_id': 'Nightlife',
+ 'avg_rating': 3.687194525904203,
+ 'total_businesses': 6138,
+ 'total_reviews': 1365990,
+ 'weighted_rating': 52.090437766851316}
+{'_id': 'Bars',
+ 'avg_rating': 3.682639366827254,
+ 'total_businesses': 5812,
+ 'total_reviews': 1298672,
+ 'weighted_rating': 51.839974977493604}
+{'_id': 'Breakfast & Brunch',
+ 'avg_rating': 3.75,
+ 'total_businesses': 3200,
+ 'total_reviews': 771571,
+ 'weighted_rating': 50.83569476671137}
+{'_id': 'American (New)',
+ 'avg_rating': 3.6998581560283688,
+ 'total_businesses': 3525,
+ 'total_reviews': 893173,
+ 'weighted_rating': 50.697442129672865}
+{'_id': 'Sandwiches',
+ 'avg_rating': 3.826407967032967,
+ 'total_businesses': 2912,
+ 'total_reviews': 562177,
+ 'weighted_rating': 50.66001068645333}
+{'_id': 'Cafes',
+ 'avg_rating': 4.027472527472527,
+ 'total_businesses': 1183,
+ 'total_reviews': 249969,
+ 'weighted_rating': 50.057843445103906}
+{'_id': 'Coffee & Tea',
+ 'avg_rating': 3.9165821501014197,
+ 'total_businesses': 1972,
+ 'total_reviews': 338653,
+ 'weighted_rating': 49.86879955306911}
+{'_id': 'Seafood',
+ 'avg_rating': 3.7498760535448685,
+ 'total_businesses': 2017,
+ 'total_reviews': 568701,
+ 'weighted_rating': 49.69002700946485}
 ... (and 539 more results)
+Execution time: 0.12s
+---------------------- */
 
 
-Q2. Average Star Rating Trends over Time (City)
-Calculates net diff between first year and latest year.
+// ==========================================
+// Q2A. City Rating Trends Over Time
+// ==========================================
 
-db.businesses.aggregate(
+db.reviews.aggregate(
 [
     {
+        "$lookup": {
+            "from": "businesses",
+            "localField": "business_id",
+            "foreignField": "_id",
+            "as": "b"
+        }
+    },
+    {
+        "$unwind": "$b"
+    },
+    {
         "$match": {
-            "review_count": {
-                "$gte": 100
+            "b.city": {
+                "$ne": ""
             }
         }
     },
     {
-        "$lookup": {
-            "from": "reviews",
-            "localField": "_id",
-            "foreignField": "business_id",
-            "as": "bus_reviews"
-        }
-    },
-    {
-        "$unwind": "$bus_reviews"
-    },
-    {
         "$group": {
             "_id": {
-                "city": "$city",
+                "city": "$b.city",
                 "year": {
-                    "$year": "$bus_reviews.date"
+                    "$year": "$date"
                 }
             },
             "avg_stars": {
-                "$avg": "$bus_reviews.stars"
+                "$avg": "$stars"
+            },
+            "review_count": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "review_count": {
+                "$gte": 50
             }
         }
     },
@@ -214,20 +292,20 @@ db.businesses.aggregate(
     {
         "$group": {
             "_id": "$_id.city",
-            "first_yr": {
+            "first_year_avg": {
                 "$first": "$avg_stars"
             },
-            "last_yr": {
+            "last_year_avg": {
                 "$last": "$avg_stars"
             },
-            "years_active": {
+            "years_covered": {
                 "$sum": 1
             }
         }
     },
     {
         "$match": {
-            "years_active": {
+            "years_covered": {
                 "$gte": 3
             }
         }
@@ -236,10 +314,11 @@ db.businesses.aggregate(
         "$project": {
             "trend": {
                 "$subtract": [
-                    "$last_yr",
-                    "$first_yr"
+                    "$last_year_avg",
+                    "$first_year_avg"
                 ]
-            }
+            },
+            "years_covered": 1
         }
     },
     {
@@ -250,22 +329,138 @@ db.businesses.aggregate(
 ]
 );
 
+/* ----- RESULTS -----
+{'_id': 'Greenville', 'trend': 0.9368191721132897, 'years_covered': 5}
+{'_id': 'Voorhees Township', 'trend': 0.8082817565576188, 'years_covered': 9}
+{'_id': 'Verdi', 'trend': 0.771276595744681, 'years_covered': 11}
+{'_id': 'Pitman', 'trend': 0.7160493827160495, 'years_covered': 9}
+{'_id': 'Redington Shores', 'trend': 0.6986817325800381, 'years_covered': 10}
+{'_id': 'Magnolia', 'trend': 0.666924664602683, 'years_covered': 8}
+{'_id': 'Maple Glen', 'trend': 0.6555431961438631, 'years_covered': 7}
+{'_id': 'Eagleville', 'trend': 0.6491228070175437, 'years_covered': 7}
+{'_id': 'Christiana', 'trend': 0.6357890578708276, 'years_covered': 3}
+{'_id': 'Lahaska', 'trend': 0.6292232671543019, 'years_covered': 11}
+... (and 429 more results)
+Execution time: 172.84s
+---------------------- */
 
-- RESULTS
-{'_id': 'Flourtown', 'trend': 3.0476190476190474}
-{'_id': 'Saint Ann', 'trend': 3.0}
-{'_id': 'Collinsville', 'trend': 2.666666666666667}
-{'_id': 'Seffner', 'trend': 2.6666666666666665}
-{'_id': 'Tampa Palms', 'trend': 2.5}
-{'_id': 'Hudson', 'trend': 2.25}
-{'_id': 'Ruskin', 'trend': 2.2142857142857144}
-{'_id': 'Town And Country', 'trend': 2.142857142857143}
-{'_id': 'Eagleville', 'trend': 2.0}
-{'_id': 'Broomall', 'trend': 2.0}
-... (and 467 more results)
+
+// ==========================================
+// Q2B. Category Rating Trends Over Time
+// ==========================================
+
+db.reviews.aggregate(
+[
+    {
+        "$lookup": {
+            "from": "businesses",
+            "localField": "business_id",
+            "foreignField": "_id",
+            "as": "b"
+        }
+    },
+    {
+        "$unwind": "$b"
+    },
+    {
+        "$match": {
+            "b.categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$unwind": "$b.categories"
+    },
+    {
+        "$group": {
+            "_id": {
+                "category": "$b.categories",
+                "year": {
+                    "$year": "$date"
+                }
+            },
+            "avg_stars": {
+                "$avg": "$stars"
+            },
+            "review_count": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "review_count": {
+                "$gte": 100
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id.year": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id.category",
+            "first_year_avg": {
+                "$first": "$avg_stars"
+            },
+            "last_year_avg": {
+                "$last": "$avg_stars"
+            },
+            "years_covered": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "years_covered": {
+                "$gte": 3
+            }
+        }
+    },
+    {
+        "$project": {
+            "trend": {
+                "$subtract": [
+                    "$last_year_avg",
+                    "$first_year_avg"
+                ]
+            },
+            "years_covered": 1
+        }
+    },
+    {
+        "$sort": {
+            "trend": -1
+        }
+    }
+]
+);
+
+/* ----- RESULTS -----
+{'_id': 'Ramen', 'trend': 1.027259364838983, 'years_covered': 12}
+{'_id': 'Teppanyaki', 'trend': 0.8619128980660173, 'years_covered': 9}
+{'_id': 'Bus Tours', 'trend': 0.8580699774266369, 'years_covered': 9}
+{'_id': 'Commercial Real Estate',
+ 'trend': 0.8459019078031607,
+ 'years_covered': 9}
+{'_id': 'Office Cleaning', 'trend': 0.8019178487544152, 'years_covered': 10}
+{'_id': 'Bistros', 'trend': 0.7932334710743802, 'years_covered': 10}
+{'_id': 'Pop-Up Restaurants', 'trend': 0.7746974927642367, 'years_covered': 10}
+{'_id': 'Buses', 'trend': 0.7444092122830441, 'years_covered': 5}
+{'_id': 'Watches', 'trend': 0.6849546679735359, 'years_covered': 11}
+{'_id': 'Chimney Sweeps', 'trend': 0.6644315757391039, 'years_covered': 7}
+... (and 821 more results)
+Execution time: 155.49s
+---------------------- */
 
 
-Q3. Correlation between Review Volume and Rating
+// ==========================================
+// Q3. Review Volume vs Average Star Rating
+// ==========================================
 
 db.businesses.aggregate(
 [
@@ -295,8 +490,7 @@ db.businesses.aggregate(
 ]
 );
 
-
-- RESULTS 
+/* ----- RESULTS -----
 {'_id': 0, 'avg_rating': 3.6069506682582237, 'business_count': 51103}
 {'_id': 10, 'avg_rating': 3.5367563010801852, 'business_count': 69988}
 {'_id': 50, 'avg_rating': 3.676617563985573, 'business_count': 23013}
@@ -304,15 +498,19 @@ db.businesses.aggregate(
 {'_id': 500, 'avg_rating': 3.9595765158806544, 'business_count': 1039}
 {'_id': 1000, 'avg_rating': 4.077922077922078, 'business_count': 308}
 {'_id': '5000+', 'avg_rating': 4.142857142857143, 'business_count': 7}
+Execution time: 0.12s
+---------------------- */
 
 
-Q4. Review Behavior Across Categories (Sampled)
+// ==========================================
+// Q4. Review Behavior Across Categories (distribution/length/usefulness)
+// ==========================================
 
 db.reviews.aggregate(
 [
     {
         "$sample": {
-            "size": 100000
+            "size": 200000
         }
     },
     {
@@ -327,15 +525,22 @@ db.reviews.aggregate(
         "$unwind": "$b"
     },
     {
+        "$match": {
+            "b.categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
         "$unwind": "$b.categories"
     },
     {
         "$group": {
             "_id": "$b.categories",
-            "avg_rating": {
-                "$avg": "$stars"
+            "review_count": {
+                "$sum": 1
             },
-            "avg_length": {
+            "avg_review_length": {
                 "$avg": {
                     "$strLenCP": {
                         "$ifNull": [
@@ -345,18 +550,119 @@ db.reviews.aggregate(
                     }
                 }
             },
-            "useful_ratio": {
+            "avg_useful_per_review": {
                 "$avg": "$useful"
             },
-            "review_count": {
-                "$sum": 1
+            "star_1": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$stars",
+                                1
+                            ]
+                        },
+                        1,
+                        0
+                    ]
+                }
+            },
+            "star_2": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$stars",
+                                2
+                            ]
+                        },
+                        1,
+                        0
+                    ]
+                }
+            },
+            "star_3": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$stars",
+                                3
+                            ]
+                        },
+                        1,
+                        0
+                    ]
+                }
+            },
+            "star_4": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$stars",
+                                4
+                            ]
+                        },
+                        1,
+                        0
+                    ]
+                }
+            },
+            "star_5": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$stars",
+                                5
+                            ]
+                        },
+                        1,
+                        0
+                    ]
+                }
             }
         }
     },
     {
         "$match": {
             "review_count": {
-                "$gte": 100
+                "$gte": 500
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "pct_1_star": {
+                "$divide": [
+                    "$star_1",
+                    "$review_count"
+                ]
+            },
+            "pct_2_star": {
+                "$divide": [
+                    "$star_2",
+                    "$review_count"
+                ]
+            },
+            "pct_3_star": {
+                "$divide": [
+                    "$star_3",
+                    "$review_count"
+                ]
+            },
+            "pct_4_star": {
+                "$divide": [
+                    "$star_4",
+                    "$review_count"
+                ]
+            },
+            "pct_5_star": {
+                "$divide": [
+                    "$star_5",
+                    "$review_count"
+                ]
             }
         }
     },
@@ -368,88 +674,182 @@ db.reviews.aggregate(
 ]
 );
 
-
-- RESULTS 
+/* ----- RESULTS -----
 {'_id': 'Restaurants',
- 'avg_length': 555.5868982174345,
- 'avg_rating': 3.784210292352601,
- 'review_count': 67487,
- 'useful_ratio': 1.0047416539481677}
+ 'avg_review_length': 550.6350984864808,
+ 'avg_useful_per_review': 1.0022661921285116,
+ 'pct_1_star': 0.12232979411087253,
+ 'pct_2_star': 0.08517910347953368,
+ 'pct_3_star': 0.11528602316717068,
+ 'pct_4_star': 0.23919843669893823,
+ 'pct_5_star': 0.43800664254348487,
+ 'review_count': 134587,
+ 'star_1': 16464,
+ 'star_2': 11464,
+ 'star_3': 15516,
+ 'star_4': 32193,
+ 'star_5': 58950}
 {'_id': 'Food',
- 'avg_length': 534.8005972892258,
- 'avg_rating': 3.875411593537024,
- 'review_count': 26118,
- 'useful_ratio': 1.1016540317022743}
+ 'avg_review_length': 533.592501309942,
+ 'avg_useful_per_review': 1.1386985969065964,
+ 'pct_1_star': 0.11199518717615324,
+ 'pct_2_star': 0.075006307128025,
+ 'pct_3_star': 0.10161268411962196,
+ 'pct_4_star': 0.23066622678491724,
+ 'pct_5_star': 0.48071959479128257,
+ 'review_count': 51529,
+ 'star_1': 5771,
+ 'star_2': 3865,
+ 'star_3': 5236,
+ 'star_4': 11886,
+ 'star_5': 24771}
 {'_id': 'Nightlife',
- 'avg_length': 592.7813655632723,
- 'avg_rating': 3.7769910706232523,
- 'review_count': 22174,
- 'useful_ratio': 1.0441959051140977}
+ 'avg_review_length': 583.9264575217005,
+ 'avg_useful_per_review': 1.0517850226687626,
+ 'pct_1_star': 0.11332103068826464,
+ 'pct_2_star': 0.08773608548060055,
+ 'pct_3_star': 0.1221834916729319,
+ 'pct_4_star': 0.2529560522178935,
+ 'pct_5_star': 0.4238033399403094,
+ 'review_count': 43893,
+ 'star_1': 4974,
+ 'star_2': 3851,
+ 'star_3': 5363,
+ 'star_4': 11103,
+ 'star_5': 18602}
 {'_id': 'Bars',
- 'avg_length': 591.5141269765896,
- 'avg_rating': 3.7790493375753833,
- 'review_count': 21059,
- 'useful_ratio': 1.0284438957215443}
+ 'avg_review_length': 580.416074054432,
+ 'avg_useful_per_review': 1.0332425330858424,
+ 'pct_1_star': 0.1122869609237519,
+ 'pct_2_star': 0.08844586939228118,
+ 'pct_3_star': 0.12265265289395656,
+ 'pct_4_star': 0.2531880529373478,
+ 'pct_5_star': 0.4234264638526625,
+ 'review_count': 41483,
+ 'star_1': 4658,
+ 'star_2': 3669,
+ 'star_3': 5088,
+ 'star_4': 10503,
+ 'star_5': 17565}
 {'_id': 'American (Traditional)',
- 'avg_length': 562.5544706374669,
- 'avg_rating': 3.672408983121774,
- 'review_count': 14338,
- 'useful_ratio': 0.938624633840145}
+ 'avg_review_length': 556.983627029277,
+ 'avg_useful_per_review': 0.9267378937144443,
+ 'pct_1_star': 0.13719300679894547,
+ 'pct_2_star': 0.09539336755931734,
+ 'pct_3_star': 0.12907589843207992,
+ 'pct_4_star': 0.24479672540585543,
+ 'pct_5_star': 0.39354100180380186,
+ 'review_count': 28828,
+ 'star_1': 3955,
+ 'star_2': 2750,
+ 'star_3': 3721,
+ 'star_4': 7057,
+ 'star_5': 11345}
 {'_id': 'American (New)',
- 'avg_length': 609.3966614797001,
- 'avg_rating': 3.836115433583251,
- 'review_count': 14138,
- 'useful_ratio': 1.0328900834630075}
+ 'avg_review_length': 598.5464605718773,
+ 'avg_useful_per_review': 1.011744547174526,
+ 'pct_1_star': 0.10091743119266056,
+ 'pct_2_star': 0.08642416021133045,
+ 'pct_3_star': 0.12115803377003534,
+ 'pct_4_star': 0.25323956734373326,
+ 'pct_5_star': 0.4382608074822404,
+ 'review_count': 28013,
+ 'star_1': 2827,
+ 'star_2': 2421,
+ 'star_3': 3394,
+ 'star_4': 7094,
+ 'star_5': 12277}
 {'_id': 'Breakfast & Brunch',
- 'avg_length': 544.1556934483036,
- 'avg_rating': 3.8572810057216538,
- 'review_count': 12409,
- 'useful_ratio': 0.8999919413329035}
+ 'avg_review_length': 533.7203702951805,
+ 'avg_useful_per_review': 0.9271184376141947,
+ 'pct_1_star': 0.10528239067765642,
+ 'pct_2_star': 0.07824109789272808,
+ 'pct_3_star': 0.11506760323196231,
+ 'pct_4_star': 0.23992041901823055,
+ 'pct_5_star': 0.46148848917942265,
+ 'review_count': 24629,
+ 'star_1': 2593,
+ 'star_2': 1927,
+ 'star_3': 2834,
+ 'star_4': 5909,
+ 'star_5': 11366}
 {'_id': 'Sandwiches',
- 'avg_length': 509.3601473748849,
- 'avg_rating': 3.8385016886705556,
- 'review_count': 9771,
- 'useful_ratio': 0.947804728277556}
-{'_id': 'Event Planning & Services',
- 'avg_length': 640.0190174326466,
- 'avg_rating': 3.684061580258094,
- 'review_count': 8834,
- 'useful_ratio': 1.1369707946570071}
+ 'avg_review_length': 504.28402337060544,
+ 'avg_useful_per_review': 0.9458547395990732,
+ 'pct_1_star': 0.1152412612068097,
+ 'pct_2_star': 0.0788254256069306,
+ 'pct_3_star': 0.1090964037473557,
+ 'pct_4_star': 0.23390752493200362,
+ 'pct_5_star': 0.46292938450690035,
+ 'review_count': 19854,
+ 'star_1': 2288,
+ 'star_2': 1565,
+ 'star_3': 2166,
+ 'star_4': 4644,
+ 'star_5': 9191}
 {'_id': 'Seafood',
- 'avg_length': 569.3840083555762,
- 'avg_rating': 3.8154810258790763,
- 'review_count': 8617,
- 'useful_ratio': 0.8730416618312637}
-... (and 354 more results)
+ 'avg_review_length': 557.4351632215069,
+ 'avg_useful_per_review': 0.9034790466508528,
+ 'pct_1_star': 0.10527504800632553,
+ 'pct_2_star': 0.08550773749011635,
+ 'pct_3_star': 0.11928159945781092,
+ 'pct_4_star': 0.2413306223878911,
+ 'pct_5_star': 0.4486049926578561,
+ 'review_count': 17706,
+ 'star_1': 1864,
+ 'star_2': 1514,
+ 'star_3': 2112,
+ 'star_4': 4273,
+ 'star_5': 7943}
+{'_id': 'Event Planning & Services',
+ 'avg_review_length': 646.7865926219754,
+ 'avg_useful_per_review': 1.178387261290871,
+ 'pct_1_star': 0.1496004986683289,
+ 'pct_2_star': 0.09214030713435711,
+ 'pct_3_star': 0.10874369581231938,
+ 'pct_4_star': 0.2161273870912903,
+ 'pct_5_star': 0.4333881112937043,
+ 'review_count': 17647,
+ 'star_1': 2640,
+ 'star_2': 1626,
+ 'star_3': 1919,
+ 'star_4': 3814,
+ 'star_5': 7648}
+... (and 202 more results)
+Execution time: 7.42s
+---------------------- */
 
 
+// ==========================================
+// Q5. User Tenure Impact on Reviewing Behavior
+// ==========================================
 
-Q5. User Tenure Impact on Review Behavior
-
-db.users.aggregate(
+db.reviews.aggregate(
 [
     {
-        "$project": {
+        "$lookup": {
+            "from": "users",
+            "localField": "user_id",
+            "foreignField": "_id",
+            "as": "u"
+        }
+    },
+    {
+        "$unwind": "$u"
+    },
+    {
+        "$addFields": {
             "tenure_years": {
-                "$floor": {
-                    "$divide": [
-                        {
-                            "$subtract": [
-                                {
-                                    "$dateFromString": {
-                                        "dateString": "2023-01-01"
-                                    }
-                                },
-                                "$yelping_since"
-                            ]
-                        },
-                        31536000000
-                    ]
-                }
-            },
-            "average_stars": 1,
-            "review_count": 1,
-            "useful": 1
+                "$divide": [
+                    {
+                        "$subtract": [
+                            "$$NOW",
+                            "$u.yelping_since"
+                        ]
+                    },
+                    31536000000
+                ]
+            }
         }
     },
     {
@@ -461,17 +861,17 @@ db.users.aggregate(
                 5,
                 8,
                 12,
-                15
+                20
             ],
-            "default": "15+",
+            "default": "20+",
             "output": {
-                "avg_rating_given": {
-                    "$avg": "$average_stars"
+                "avg_star_given": {
+                    "$avg": "$stars"
                 },
-                "avg_useful_sent": {
+                "avg_useful_received": {
                     "$avg": "$useful"
                 },
-                "user_count": {
+                "review_count": {
                     "$sum": 1
                 }
             }
@@ -480,50 +880,59 @@ db.users.aggregate(
 ]
 );
 
-
-- RESULTS 
-{'_id': 0,
- 'avg_rating_given': 2.9647435690017794,
- 'avg_useful_sent': 0.9469803776550257,
- 'user_count': 43267}
+/* ----- RESULTS -----
 {'_id': 2,
- 'avg_rating_given': 3.3958764675568704,
- 'avg_useful_sent': 4.376458792720848,
- 'user_count': 285253}
+ 'avg_star_given': 3.117279189510329,
+ 'avg_useful_received': 0.29692939484271746,
+ 'review_count': 47971}
 {'_id': 5,
- 'avg_rating_given': 3.6225013731843907,
- 'avg_useful_sent': 14.295665287523686,
- 'user_count': 615358}
+ 'avg_star_given': 3.547329246377181,
+ 'avg_useful_received': 0.5449586418730324,
+ 'review_count': 549227}
 {'_id': 8,
- 'avg_rating_given': 3.7158533231193505,
- 'avg_useful_sent': 42.43972054542669,
- 'user_count': 815875}
+ 'avg_star_given': 3.739259272935399,
+ 'avg_useful_received': 0.856053265946832,
+ 'review_count': 2491498}
 {'_id': 12,
- 'avg_rating_given': 3.7655682126916363,
- 'avg_useful_sent': 148.62199204346982,
- 'user_count': 206120}
-{'_id': '15+',
- 'avg_rating_given': 3.7741995096258627,
- 'avg_useful_sent': 396.6111060661097,
- 'user_count': 22024}
+ 'avg_star_given': 3.7903410257162125,
+ 'avg_useful_received': 1.4928318288610716,
+ 'review_count': 3887742}
+{'_id': '20+',
+ 'avg_star_given': 3.8726917227894853,
+ 'avg_useful_received': 2.215801289014411,
+ 'review_count': 13809}
+Execution time: 154.04s
+---------------------- */
 
 
+// ==========================================
+// Q6. Elite vs Non-Elite Review Metrics
+// ==========================================
 
-Q6. Elite User Status vs Review Quality
-
-db.users.aggregate(
+db.reviews.aggregate(
 [
     {
-        "$project": {
+        "$lookup": {
+            "from": "users",
+            "localField": "user_id",
+            "foreignField": "_id",
+            "as": "u"
+        }
+    },
+    {
+        "$unwind": "$u"
+    },
+    {
+        "$addFields": {
             "is_elite": {
                 "$cond": [
                     {
                         "$gt": [
                             {
-                                "$strLenCP": {
+                                "$size": {
                                     "$ifNull": [
-                                        "$elite",
-                                        ""
+                                        "$u.elite",
+                                        []
                                     ]
                                 }
                             },
@@ -533,53 +942,65 @@ db.users.aggregate(
                     "Elite",
                     "Non-Elite"
                 ]
-            },
-            "average_stars": 1,
-            "review_count": 1,
-            "useful": 1
+            }
         }
     },
     {
         "$group": {
             "_id": "$is_elite",
-            "overall_avg_rating": {
-                "$avg": "$average_stars"
+            "mean_star_rating_given": {
+                "$avg": "$stars"
             },
-            "total_useful_sent": {
+            "mean_review_character_length": {
+                "$avg": {
+                    "$strLenCP": {
+                        "$ifNull": [
+                            "$text",
+                            ""
+                        ]
+                    }
+                }
+            },
+            "mean_useful_votes_per_review": {
                 "$avg": "$useful"
             },
-            "avg_review_count": {
-                "$avg": "$review_count"
-            },
-            "user_count": {
+            "review_count": {
                 "$sum": 1
             }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
         }
     }
 ]
 );
 
-
-- RESULTS 
+/* ----- RESULTS -----
 {'_id': 'Elite',
- 'avg_review_count': 224.6150244522906,
- 'overall_avg_rating': 3.975784118072765,
- 'total_useful_sent': 650.9082436018334,
- 'user_count': 91198}
+ 'mean_review_character_length': 778.2346994595684,
+ 'mean_star_rating_given': 3.9677062314780795,
+ 'mean_useful_votes_per_review': 2.2990320214086455,
+ 'review_count': 1725658}
 {'_id': 'Non-Elite',
- 'avg_review_count': 13.719222185491741,
- 'overall_avg_rating': 3.613891750878764,
- 'total_useful_sent': 13.032762710372072,
- 'user_count': 1896699}
+ 'mean_review_character_length': 498.7753383977363,
+ 'mean_star_rating_given': 3.6767593823563436,
+ 'mean_useful_votes_per_review': 0.8193241675655972,
+ 'review_count': 5264589}
+Execution time: 174.88s
+---------------------- */
 
 
-
-Q7. Check-in Activity vs Star Ratings
+// ==========================================
+// Q7A. Check-in Activity vs Business Stars (overall)
+// ==========================================
 
 db.checkins.aggregate(
 [
     {
         "$project": {
+            "business_id": "$_id",
             "checkin_count": {
                 "$size": {
                     "$ifNull": [
@@ -587,8 +1008,7 @@ db.checkins.aggregate(
                         []
                     ]
                 }
-            },
-            "business_id": "$_id"
+            }
         }
     },
     {
@@ -596,11 +1016,11 @@ db.checkins.aggregate(
             "from": "businesses",
             "localField": "business_id",
             "foreignField": "_id",
-            "as": "bus"
+            "as": "b"
         }
     },
     {
-        "$unwind": "$bus"
+        "$unwind": "$b"
     },
     {
         "$bucket": {
@@ -610,13 +1030,13 @@ db.checkins.aggregate(
                 10,
                 50,
                 100,
-                500,
+                300,
                 1000
             ],
             "default": "1000+",
             "output": {
                 "avg_business_stars": {
-                    "$avg": "$bus.stars"
+                    "$avg": "$b.stars"
                 },
                 "business_count": {
                     "$sum": 1
@@ -627,13 +1047,131 @@ db.checkins.aggregate(
 ]
 );
 
-
-- RESULTS 
+/* ----- RESULTS -----
 {'_id': 0, 'avg_business_stars': 3.606712358572672, 'business_count': 45960}
 {'_id': 10, 'avg_business_stars': 3.5605386706202125, 'business_count': 44517}
 {'_id': 50, 'avg_business_stars': 3.577209516905029, 'business_count': 15173}
-{'_id': 100, 'avg_business_stars': 3.60697775209477, 'business_count': 20766}
-{'_id': 500, 'avg_business_stars': 3.7574893009985733, 'business_count': 3505}
+{'_id': 100, 'avg_business_stars': 3.5928162158831864, 'business_count': 16231}
+{'_id': 300, 'avg_business_stars': 3.701181592039801, 'business_count': 8040}
 {'_id': '1000+',
  'avg_business_stars': 3.8770532603285215,
  'business_count': 2009}
+Execution time: 3.27s
+---------------------- */
+
+
+// ==========================================
+// Q7B. Check-in Activity vs Stars by Category
+// ==========================================
+
+db.checkins.aggregate(
+[
+    {
+        "$project": {
+            "business_id": "$_id",
+            "checkin_count": {
+                "$size": {
+                    "$ifNull": [
+                        "$dates",
+                        []
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "$lookup": {
+            "from": "businesses",
+            "localField": "business_id",
+            "foreignField": "_id",
+            "as": "b"
+        }
+    },
+    {
+        "$unwind": "$b"
+    },
+    {
+        "$match": {
+            "b.categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$unwind": "$b.categories"
+    },
+    {
+        "$group": {
+            "_id": "$b.categories",
+            "avg_checkins": {
+                "$avg": "$checkin_count"
+            },
+            "avg_stars": {
+                "$avg": "$b.stars"
+            },
+            "business_count": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$match": {
+            "business_count": {
+                "$gte": 100
+            }
+        }
+    },
+    {
+        "$sort": {
+            "avg_checkins": -1
+        }
+    }
+]
+);
+
+/* ----- RESULTS -----
+{'_id': 'Airports',
+ 'avg_checkins': 2403.532110091743,
+ 'avg_stars': 3.2247706422018347,
+ 'business_count': 109}
+{'_id': 'Casinos',
+ 'avg_checkins': 831.7857142857143,
+ 'avg_stars': 3.0669642857142856,
+ 'business_count': 112}
+{'_id': 'Shopping Centers',
+ 'avg_checkins': 706.6734693877551,
+ 'avg_stars': 3.379251700680272,
+ 'business_count': 294}
+{'_id': 'Stadiums & Arenas',
+ 'avg_checkins': 581.8230769230769,
+ 'avg_stars': 3.776923076923077,
+ 'business_count': 130}
+{'_id': 'Airlines',
+ 'avg_checkins': 554.9158878504672,
+ 'avg_stars': 2.574766355140187,
+ 'business_count': 107}
+{'_id': 'Cajun/Creole',
+ 'avg_checkins': 516.5600882028666,
+ 'avg_stars': 3.715545755237045,
+ 'business_count': 907}
+{'_id': 'Gastropubs',
+ 'avg_checkins': 477.609375,
+ 'avg_stars': 3.7880859375,
+ 'business_count': 512}
+{'_id': 'Souvenir Shops',
+ 'avg_checkins': 422.3274336283186,
+ 'avg_stars': 4.119469026548672,
+ 'business_count': 113}
+{'_id': 'Jazz & Blues',
+ 'avg_checkins': 401.9085714285714,
+ 'avg_stars': 3.8914285714285715,
+ 'business_count': 175}
+{'_id': 'Landmarks & Historical Buildings',
+ 'avg_checkins': 392.84,
+ 'avg_stars': 4.163333333333333,
+ 'business_count': 300}
+... (and 491 more results)
+Execution time: 3.50s
+---------------------- */
+
+

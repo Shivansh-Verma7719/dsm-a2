@@ -56,6 +56,15 @@ def transform_business(doc):
 
 def transform_user(doc):
     doc['_id'] = doc.pop('user_id')
+    # Normalize string-encoded arrays used in Yelp JSON.
+    friends_val = doc.get('friends')
+    if isinstance(friends_val, str):
+        doc['friends'] = [f.strip() for f in friends_val.split(',') if f.strip() and f.strip().lower() != 'none']
+
+    elite_val = doc.get('elite')
+    if isinstance(elite_val, str):
+        doc['elite'] = [e.strip() for e in elite_val.split(',') if e.strip() and e.strip().lower() != 'none']
+
     if doc.get('yelping_since'):
         try:
             doc['yelping_since'] = dateutil.parser.parse(doc['yelping_since'])
@@ -93,11 +102,15 @@ def transform_tip(doc):
 def create_indexes(db):
     print("Creating indexes...")
     # Business indexes
-    db.businesses.create_index([("city", 1), ("categories", 1)])
+    db.businesses.create_index([("city", 1), ("review_count", -1)])
+    db.businesses.create_index([("categories", 1), ("review_count", -1)])
     
     # Review indexes
     db.reviews.create_index([("business_id", 1), ("date", 1)])
-    db.reviews.create_index([("user_id", 1)])
+    db.reviews.create_index([("user_id", 1), ("date", 1)])
+
+    # User index for tenure-bucket style analysis
+    db.users.create_index([("yelping_since", 1)])
     
     # Checkins automatically indexed on _id
     print("Indexes created.")

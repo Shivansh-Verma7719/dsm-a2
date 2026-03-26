@@ -23,17 +23,17 @@
 \section{Data Acquisition and MongoDB Schema Design}
 
 \subsection*{1. Core ETL Logic \& Data Loading}
-The extraction, transformation, and loading (ETL) pipeline was developed in Python utilizing the \texttt{pymongo} library. Instead of a direct import mirroring the exact JSON constraints, we apply specific transformations defined in \texttt{etl/load\_yelp.py}. The pipeline uses generators to stream huge \texttt{.json} files, formatting attributes like \texttt{date} strings into proper MongoDB ISODate objects, restructuring nested values like \texttt{checkins} into formal Datetime Arrays, and merging native IDs to MongoDB's intrinsic \texttt{\_id} fields to inherently optimize index sizing as data loads.
+The extraction, transformation, and loading (ETL) pipeline was developed in Python utilizing the \texttt{pymongo} library. Instead of a direct import mirroring the exact JSON constraints, we apply specific transformations defined in \texttt{etl/load\_yelp\_mongo.py}. The pipeline streams large \texttt{.json} files in batches, converts date strings into MongoDB-compatible Date values, restructures \texttt{checkin.date} into a \texttt{dates} array, normalizes user \texttt{friends} and \texttt{elite} into arrays, and maps Yelp IDs to MongoDB \texttt{\_id} where appropriate.
 
 The script runs sequentially via:
 \begin{verbatim}
-python3 etl/load_yelp.py --data-dir ../data
+python3 etl/load_yelp_mongo.py --data-dir ../data
 \end{verbatim}
 
 \subsection*{2. Collection Structure and Inter-relations}
 The schema was modeled strictly based on the relational and analytical needs of the provided dataset parameters. Instead of mimicking the six source JSON files 1:1, the design separates bounded attributes (embedded) from unbounded elements (referenced) to prevent hitting MongoDB's 16MB document size limit as relationships scale.
 
-Below is an overview of the six primary collections, their respective roles, document identifiers, and referential structures.
+Below is an overview of the five primary collections, their respective roles, document identifiers, and referential structures.
 
 \subsubsection*{Businesses Collection}
 \textbf{Purpose:} Acts as the central anchor for the database, housing core attributes, categorizations, and static metadata for various commercial locations.\\
@@ -65,12 +65,6 @@ Below is an overview of the six primary collections, their respective roles, doc
 \textbf{Linking Relationships:} Utilizes distinct \texttt{user\_id} and \texttt{business\_id} fields to bridge across the Users and Businesses collections.\\
 \textbf{Key Fields:} \texttt{text}, \texttt{date} (Date object), \texttt{compliment\_count}. Like reviews, tips are unconstrained and inherently must maintain a normalized cross-reference.
 
-\subsubsection*{Photos Collection}
-\textbf{Purpose:} Contains metadata and classifications for user-uploaded images associated with a business.\\
-\textbf{Identifier Field:} \texttt{\_id} (String, mapped directly from \texttt{photo\_id}).\\
-\textbf{Linking Relationships:} The \texttt{business\_id} field provides a N:1 referenced mapping directly to the Businesses collection.\\
-\textbf{Key Fields:} \texttt{caption}, \texttt{label} (String classification). Standalone referencing prevents massive accumulation of string URLs or binary blobs within the base business document.
-
 \subsection*{3. Schema Design Justifications (Embedding vs. Referencing)}
 
 \subsubsection*{(a) Relationship Design Choices}
@@ -98,17 +92,25 @@ Below is an overview of the six primary collections, their respective roles, doc
 To efficiently execute the analytical queries mapped out in Section 4 of the assignment, the following targeted indexes were established inside the ETL loading script:
 
 \begin{enumerate}
-    \item \texttt{db.businesses.createIndex(\{ "city": 1, "categories": 1 \})}
+    \item \texttt{db.businesses.createIndex(\{ "city": 1, "review\_count": -1 \})}
     \begin{itemize}
-        \item \textbf{Justification:} Section 4 Queries 1 \& 2 strictly demand isolating specific cities and business categories to compute safety and ratings. This compound index allows MongoDB to instantly filter down the 150,000+ businesses dataset without triggering an expensive full collection scan (COLLSCAN).
+        \item \textbf{Justification:} Queries 1 and 2 filter and aggregate by city while enforcing minimum review-volume thresholds. This index accelerates those filters and reduces scan volume before grouping.
+    \end{itemize}
+    \item \texttt{db.businesses.createIndex(\{ "categories": 1, "review\_count": -1 \})}
+    \begin{itemize}
+        \item \textbf{Justification:} Queries 1, 2, 4, and 7 all touch category-level analysis with review-volume constraints. This multikey index supports category filtering and faster category aggregates.
     \end{itemize}
     \item \texttt{db.reviews.createIndex(\{ "business\_id": 1, "date": 1 \})}
     \begin{itemize}
         \item \textbf{Justification:} Query 2 analyzes rating trends \textit{over time}. This compound index supports extremely fast sequential retrievals natively sorted by date for any given business, removing the need for an expensive in-memory sort stage during the aggregation pipeline.
     \end{itemize}
-    \item \texttt{db.reviews.createIndex(\{ "user\_id": 1 \})}
+    \item \texttt{db.reviews.createIndex(\{ "user\_id": 1, "date": 1 \})}
     \begin{itemize}
-        \item \textbf{Justification:} Queries 5 \& 6 require aggregating a user's tenure and elite status against their review behavior (average review length and usefulness ratio). This index enables rapid resolution of all reviews mapped to a specific user during a \texttt{\$lookup} join originating from the Users collection without scanning 7 million generic reviews.
+        \item \textbf{Justification:} Queries 5 and 6 join users to review-level behavior. This compound index speeds user-centric traversals and supports optional temporal slicing.
+    \end{itemize}
+    \item \texttt{db.users.createIndex(\{ "yelping\_since": 1 \})}
+    \begin{itemize}
+        \item \textbf{Justification:} Query 5 bins users by tenure on Yelp. This index helps tenure-range filtering and bucketing when user-side prefiltering is applied.
     \end{itemize}
     \item \texttt{db.checkins.createIndex(\{ "\_id": 1 \})} \textit{(Auto-generated mapped from business\_id)}
     \begin{itemize}

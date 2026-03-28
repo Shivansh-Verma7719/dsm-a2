@@ -16,3 +16,6 @@ data/
 *.md
 sq.py
 sq_neo4j.py
+
+*.mmd
+*.png

@@ -1,7 +1,12 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{geometry}
-\geometry{margin=1in}
+\geometry{
+    top=1in,
+    bottom=0.5in,
+    left=0.5in,
+    right=0.5in
+}
 \usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -118,6 +123,42 @@ To efficiently execute the analytical queries mapped out in Section 4 of the ass
     \end{itemize}
 \end{enumerate}
 
+\section{Entity-Relationship (E-R) Diagram (MongoDB)}
+
+\subsection*{1. E-R Diagram}
+\begin{figure}[H]
+        \centering
+    \includegraphics[width=0.95\textwidth]{er-diagram.png}
+        \caption{Entity-Relationship diagram for the MongoDB data model.}
+\end{figure}
+
+\subsection*{2. Explanation of Relationships and Attributes}
+\begin{itemize}
+        \item \textbf{Embedded relationships:} Business \texttt{hours} and \texttt{attributes} are embedded because they are tightly coupled with one business document and are queried together with business profile fields.
+        \item \textbf{Referenced relationships:} Reviews and tips reference users and businesses using \texttt{user\_id} and \texttt{business\_id}, enabling unbounded growth without inflating parent documents.
+        \item \textbf{1:1 extension:} Checkins uses \texttt{business\_id} as \texttt{\_id}, creating a direct one-to-one extension document for each business.
+        \item \textbf{Self-reference:} User friendships are represented as an array of referenced user IDs (N:M style social links) rather than embedded user objects.
+        \item \textbf{Key attributes retained in the diagram:} identifiers, rating fields, temporal fields, text payload fields, and array/object fields that drive the assignment queries.
+\end{itemize}
+
+\section{Document Schema Diagram (MongoDB Collections)}
+
+\subsection*{1. Document Schema Diagram}
+\begin{figure}[H]
+        \centering
+        \includegraphics[width=0.95\textwidth]{class-diagram.png}
+        \caption{Document schema diagram with fields, types, nesting, and references.}
+\end{figure}
+
+\subsection*{2. Structural Design Justifications}
+\begin{itemize}
+        \item \textbf{Business document keeps bounded nested data embedded:} \texttt{hours} and \texttt{attributes} are naturally one-business scoped and usually read with the business profile.
+        \item \textbf{High-volume activity is referenced:} \texttt{reviews} and \texttt{tips} are separate collections to avoid unbounded growth in user/business documents.
+        \item \textbf{Checkin separation supports write scalability:} each check-in event appends to \texttt{checkins.dates} without repeatedly rewriting large business documents.
+        \item \textbf{User social links use ID arrays:} storing \texttt{friends} as IDs avoids heavy duplication from embedded friend subdocuments and maintains compatibility with graph projection workflows.
+        \item \textbf{ETL-consistent typing:} date fields are transformed to Date values in ETL, and categories/friends/elite are normalized into arrays for efficient aggregation and indexing.
+\end{itemize}
+
 \section{Neo4j Property Graph Model}
 
 \subsection*{1. Graph Schema Design: Nodes \& Properties}
@@ -149,7 +190,14 @@ The Yelp dataset contains dense, multi-hop networking correlations (like Users h
     \textit{Direction:} Directed. Defines the classification of a commercial entity (e.g., 'Restaurants', 'Active Life').
 \end{itemize}
 
-\subsection*{3. Modelling Choices \& Handling Non-Graph Aspects}
+\subsection*{3. Property Graph Diagram}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{property-graph.png}
+    \caption{Neo4j property graph model (labels, directions, and key properties).}
+\end{figure}
+
+\subsection*{4. Modelling Choices \& Handling Non-Graph Aspects}
 
 \textbf{Treating Reviews as Nodes rather than Relationships:}\\
 Intuitively, a review appears functionally identical to an edge: \texttt{(User)-[:REVIEWED \{stars: 5, date: '...'\}]->(Business)}. However, directly injecting massive payloads (like paragraphs of raw string text and interaction metrics such as \texttt{useful} counts) into edge properties forces the database to evaluate heavy string clusters during large-scale network traversals like Community Detection or PageRank pathing. By extracting the Review into its own definitive \textit{Node}, it maintains a lighter relationship bridging \texttt{User $\rightarrow$ WROTE $\rightarrow$ Review $\rightarrow$ REVIEWS $\rightarrow$ Business}.

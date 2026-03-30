@@ -1,10 +1,5 @@
-// Category used for Q4: Restaurants
-
-// ==========================================
-// Q1. Top 10 users by direct friends
-// ==========================================
-
 // Q1. Top 10 users by direct friend count; include total reviews and mean star rating given.
+
 MATCH (u:User)
 OPTIONAL MATCH (u)-[:FRIENDS_WITH]-(f:User)
 WITH u, count(DISTINCT f) AS friend_count
@@ -74,9 +69,7 @@ Execution time: 198.34s
 ---------------------- */
 
 
-// ==========================================
 // Q2. Top 3 businesses per state (>=50 reviews)
-// ==========================================
 
 // Q2. For each state, top 3 businesses by average review stars among businesses with >= 50 reviews.
 MATCH (b:Business)<-[:REVIEWS]-(r:Review)
@@ -235,11 +228,9 @@ Execution time: 18.10s
 ---------------------- */
 
 
-// ==========================================
-// Q3. Top 10 users by distinct reviewed cities
-// ==========================================
 
 // Q3. Top 10 users by number of distinct reviewed cities; include mean star rating per city.
+
 MATCH (u:User)-[:WROTE]->(r:Review)-[:REVIEWS]->(b:Business)
 WHERE b.city IS NOT NULL AND trim(b.city) <> ""
 WITH u, b.city AS city, avg(r.stars) AS mean_star_rating_city, count(r) AS reviews_in_city
@@ -1952,11 +1943,10 @@ Execution time: 28.42s
 ---------------------- */
 
 
-// ==========================================
 // Q4. Category-specialized users vs overall rating
-// ==========================================
 
 // Q4. Users with >=5 reviewed businesses in a chosen category; compare category mean vs overall mean stars.
+
 WITH $category AS target_category
 MATCH (u:User)-[:WROTE]->(r_cat:Review)-[:REVIEWS]->(b_cat:Business)-[:IN_CATEGORY]->(:Category {name: target_category})
 WITH u, target_category, count(DISTINCT b_cat) AS distinct_businesses_in_category, avg(r_cat.stars) AS category_mean_star
@@ -1976,6 +1966,7 @@ RETURN
   round((category_mean_star - overall_mean_star) * 100.0) / 100.0 AS category_minus_overall
 ORDER BY distinct_businesses_in_category DESC, total_reviews_all DESC
 LIMIT 100;
+
 // Params: {'category': 'Restaurants'}
 
 /* ----- RESULTS -----
@@ -2104,11 +2095,10 @@ Execution time: 21.03s
 ---------------------- */
 
 
-// ==========================================
 // Q5. Cypher reproduction of Mongo volume-vs-rating
-// ==========================================
 
 // Q5. Reproduce Mongo Section-5 Query 3 (review-volume vs average rating) in Cypher.
+
 MATCH (b:Business)<-[:REVIEWS]-(r:Review)
 WITH b, count(r) AS review_count, avg(r.stars) AS avg_star
 WITH

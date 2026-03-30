@@ -1,6 +1,4 @@
-// ==========================================
 // Q1A. Safest/Least-Safe Cities (volume-adjusted)
-// ==========================================
 
 db.businesses.aggregate(
 [
@@ -116,9 +114,7 @@ Execution time: 0.80s
 ---------------------- */
 
 
-// ==========================================
 // Q1B. Safest/Least-Safe Categories (volume-adjusted)
-// ==========================================
 
 db.businesses.aggregate(
 [
@@ -237,9 +233,7 @@ Execution time: 0.12s
 ---------------------- */
 
 
-// ==========================================
 // Q2A. City Rating Trends Over Time
-// ==========================================
 
 db.reviews.aggregate(
 [
@@ -345,9 +339,7 @@ Execution time: 172.84s
 ---------------------- */
 
 
-// ==========================================
 // Q2B. Category Rating Trends Over Time
-// ==========================================
 
 db.reviews.aggregate(
 [
@@ -458,9 +450,7 @@ Execution time: 155.49s
 ---------------------- */
 
 
-// ==========================================
 // Q3. Review Volume vs Average Star Rating
-// ==========================================
 
 db.businesses.aggregate(
 [
@@ -502,9 +492,7 @@ Execution time: 0.12s
 ---------------------- */
 
 
-// ==========================================
 // Q4. Review Behavior Across Categories (distribution/length/usefulness)
-// ==========================================
 
 db.reviews.aggregate(
 [
@@ -820,9 +808,7 @@ Execution time: 7.42s
 ---------------------- */
 
 
-// ==========================================
 // Q5. User Tenure Impact on Reviewing Behavior
-// ==========================================
 
 db.reviews.aggregate(
 [
@@ -905,9 +891,7 @@ Execution time: 154.04s
 ---------------------- */
 
 
-// ==========================================
 // Q6. Elite vs Non-Elite Review Metrics
-// ==========================================
 
 db.reviews.aggregate(
 [
@@ -992,9 +976,7 @@ Execution time: 174.88s
 ---------------------- */
 
 
-// ==========================================
 // Q7A. Check-in Activity vs Business Stars (overall)
-// ==========================================
 
 db.checkins.aggregate(
 [
@@ -1060,9 +1042,7 @@ Execution time: 3.27s
 ---------------------- */
 
 
-// ==========================================
 // Q7B. Check-in Activity vs Stars by Category
-// ==========================================
 
 db.checkins.aggregate(
 [

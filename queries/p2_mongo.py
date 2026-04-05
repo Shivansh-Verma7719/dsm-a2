@@ -14,8 +14,10 @@ from rich.panel import Panel
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "report" / "p2"
-FIG_DIR = OUT_DIR / "figures"
-DATA_DIR = OUT_DIR / "data"
+FIG_ROOT = OUT_DIR / "figures"
+DATA_ROOT = OUT_DIR / "data"
+FIG_DIR = FIG_ROOT / "mongo"
+DATA_DIR = DATA_ROOT / "mongo"
 QUERIES_TXT = ROOT / "queries" / "mongo_part2_queries.txt"
 console = Console()
 
@@ -32,6 +34,12 @@ def run_aggregate(db, collection_name: str, pipeline: list, step_label: str):
 
 def setup_dirs() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    FIG_ROOT.mkdir(parents=True, exist_ok=True)
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    (FIG_ROOT / "neo4j").mkdir(parents=True, exist_ok=True)
+    (FIG_ROOT / "predictive_modelling").mkdir(parents=True, exist_ok=True)
+    (DATA_ROOT / "neo4j").mkdir(parents=True, exist_ok=True)
+    (DATA_ROOT / "predictive_modelling").mkdir(parents=True, exist_ok=True)
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 

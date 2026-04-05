@@ -142,3 +142,362 @@ db.reviews.aggregate(
 ]
 );
 
+// ==========================================
+// P2-Q2. Monthly Category Ratings + Trend Consistency Base
+// ==========================================
+
+db.reviews.aggregate(
+[
+    {
+        "$lookup": {
+            "from": "businesses",
+            "localField": "business_id",
+            "foreignField": "_id",
+            "as": "b"
+        }
+    },
+    {
+        "$unwind": "$b"
+    },
+    {
+        "$match": {
+            "b.categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$unwind": "$b.categories"
+    },
+    {
+        "$group": {
+            "_id": {
+                "category": "$b.categories",
+                "year": {
+                    "$year": "$date"
+                },
+                "month": {
+                    "$month": "$date"
+                }
+            },
+            "avg_star": {
+                "$avg": "$stars"
+            },
+            "review_count": {
+                "$sum": 1
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id.category": 1,
+            "_id.year": 1,
+            "_id.month": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id.category",
+            "total_reviews": {
+                "$sum": "$review_count"
+            },
+            "monthly": {
+                "$push": {
+                    "year": "$_id.year",
+                    "month": "$_id.month",
+                    "avg_star": "$avg_star",
+                    "review_count": "$review_count"
+                }
+            }
+        }
+    },
+    {
+        "$match": {
+            "total_reviews": {
+                "$gte": 500
+            }
+        }
+    },
+    {
+        "$sort": {
+            "total_reviews": -1
+        }
+    }
+]
+);
+
+// ==========================================
+// P2-Q3A. Check-in Counts per Business (for quartiles)
+// ==========================================
+
+db.checkins.aggregate(
+[
+    {
+        "$project": {
+            "business_id": "$_id",
+            "checkin_count": {
+                "$size": {
+                    "$ifNull": [
+                        "$dates",
+                        []
+                    ]
+                }
+            }
+        }
+    }
+]
+);
+
+// ==========================================
+// P2-Q3B. Top-10 Categories by Total Review Count
+// ==========================================
+
+db.businesses.aggregate(
+[
+    {
+        "$match": {
+            "categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$unwind": "$categories"
+    },
+    {
+        "$group": {
+            "_id": "$categories",
+            "total_review_count": {
+                "$sum": "$review_count"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "total_review_count": -1
+        }
+    },
+    {
+        "$limit": 10
+    }
+]
+);
+
+// ==========================================
+// P2-Q3C. Cross-tab by Check-in Class and Top-10 Categories
+// Quartile cutoffs from check-ins: Q1=6.00, Q3=72.00
+// ==========================================
+
+db.businesses.aggregate(
+[
+    {
+        "$match": {
+            "categories": {
+                "$type": "array"
+            }
+        }
+    },
+    {
+        "$match": {
+            "categories": {
+                "$in": [
+                    "Restaurants",
+                    "Food",
+                    "Nightlife",
+                    "Bars",
+                    "American (Traditional)",
+                    "American (New)",
+                    "Breakfast & Brunch",
+                    "Sandwiches",
+                    "Seafood",
+                    "Event Planning & Services"
+                ]
+            }
+        }
+    },
+    {
+        "$lookup": {
+            "from": "checkins",
+            "localField": "_id",
+            "foreignField": "_id",
+            "as": "c"
+        }
+    },
+    {
+        "$lookup": {
+            "from": "tips",
+            "let": {
+                "bid": "$_id"
+            },
+            "pipeline": [
+                {
+                    "$match": {
+                        "$expr": {
+                            "$eq": [
+                                "$business_id",
+                                "$$bid"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": null,
+                        "tip_count": {
+                            "$sum": 1
+                        }
+                    }
+                }
+            ],
+            "as": "tip_info"
+        }
+    },
+    {
+        "$addFields": {
+            "checkin_count": {
+                "$ifNull": [
+                    {
+                        "$let": {
+                            "vars": {
+                                "c1": {
+                                    "$arrayElemAt": [
+                                        "$c",
+                                        0
+                                    ]
+                                }
+                            },
+                            "in": {
+                                "$size": {
+                                    "$ifNull": [
+                                        "$$c1.dates",
+                                        []
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    0
+                ]
+            },
+            "tip_count": {
+                "$ifNull": [
+                    {
+                        "$arrayElemAt": [
+                            "$tip_info.tip_count",
+                            0
+                        ]
+                    },
+                    0
+                ]
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "checkin_class": {
+                "$switch": {
+                    "branches": [
+                        {
+                            "case": {
+                                "$lte": [
+                                    "$checkin_count",
+                                    6.0
+                                ]
+                            },
+                            "then": "low"
+                        },
+                        {
+                            "case": {
+                                "$gt": [
+                                    "$checkin_count",
+                                    72.0
+                                ]
+                            },
+                            "then": "high"
+                        }
+                    ],
+                    "default": "medium"
+                }
+            }
+        }
+    },
+    {
+        "$unwind": "$categories"
+    },
+    {
+        "$match": {
+            "categories": {
+                "$in": [
+                    "Restaurants",
+                    "Food",
+                    "Nightlife",
+                    "Bars",
+                    "American (Traditional)",
+                    "American (New)",
+                    "Breakfast & Brunch",
+                    "Sandwiches",
+                    "Seafood",
+                    "Event Planning & Services"
+                ]
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": {
+                "category": "$categories",
+                "checkin_class": "$checkin_class"
+            },
+            "business_count": {
+                "$sum": 1
+            },
+            "mean_star_rating": {
+                "$avg": "$stars"
+            },
+            "mean_review_count": {
+                "$avg": "$review_count"
+            },
+            "total_tips": {
+                "$sum": "$tip_count"
+            },
+            "total_reviews": {
+                "$sum": "$review_count"
+            }
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "category": "$_id.category",
+            "checkin_class": "$_id.checkin_class",
+            "business_count": 1,
+            "mean_star_rating": 1,
+            "mean_review_count": 1,
+            "tips_to_reviews_ratio": {
+                "$cond": [
+                    {
+                        "$gt": [
+                            "$total_reviews",
+                            0
+                        ]
+                    },
+                    {
+                        "$divide": [
+                            "$total_tips",
+                            "$total_reviews"
+                        ]
+                    },
+                    0
+                ]
+            }
+        }
+    },
+    {
+        "$sort": {
+            "category": 1,
+            "checkin_class": 1
+        }
+    }
+]
+);
+

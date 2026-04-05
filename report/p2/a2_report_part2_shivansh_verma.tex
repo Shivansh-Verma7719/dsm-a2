@@ -1,0 +1,228 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{
+    top=1in,
+    bottom=0.5in,
+    left=0.5in,
+    right=0.5in
+}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{fancyvrb}
+
+\title{\textbf{DSM A2 Part 2 Final Report: MongoDB + Neo4j Querying}}
+\author{Shivansh Verma}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{MongoDB Querying}
+
+\subsection*{Workflow and Execution}
+The full MongoDB Part 2 pipeline is implemented in \texttt{queries/p2\_mongo.py}. It writes complete aggregation pipelines, executes all required queries, saves tabular outputs, and generates visualizations.
+
+Run sequence:
+\begin{verbatim}
+source .venv/bin/activate
+pip install -r requirements.txt
+python queries/p2_mongo.py
+\end{verbatim}
+
+Generated artifacts:
+\begin{itemize}
+    \item Pipelines: \texttt{queries/mongo\_part2\_queries.txt}
+    \item Data outputs: \texttt{report/p2/data/q*.csv}, \texttt{report/p2/data/q*.json}
+    \item Figures: \texttt{report/p2/figures/q*.png}
+\end{itemize}
+
+\subsection*{Q1: Cohort Analysis of User Reviewing Behaviour}
+Cohorts are defined by year of \texttt{users.yelping\_since}. For each cohort, the query computes mean and standard deviation of stars, mean review character length, mean useful votes per review, and star-bucket proportions.
+
+Key outputs from \texttt{q1\_summary.json}:
+\begin{itemize}
+    \item Highest mean star cohort: \textbf{2005} (\textbf{3.903})
+    \item Highest mean useful-votes cohort: \textbf{2004} (\textbf{2.276})
+    \item Total cohorts: \textbf{19}
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/q1_cohort_star_heatmap.png}
+    \caption{Q1 heatmap: star proportions by cohort year.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/q1_cohort_metric_lines.png}
+    \caption{Q1 line plot: mean stars and mean useful votes by cohort year.}
+\end{figure}
+
+Interpretation:
+\begin{itemize}
+    \item Older cohorts show stronger useful-vote and rating signals than recent cohorts.
+    \item Later cohorts (notably post-2018) trend lower on both dimensions.
+\end{itemize}
+
+\subsection*{Q2: Month-over-Month Trend Consistency by Category}
+For each category with at least 500 reviews, monthly average stars are computed and consistency is measured as the proportion of consecutive month-pairs with increase/decrease.
+
+Top 3 upward categories:
+\begin{itemize}
+    \item Japanese Curry (0.544)
+    \item Home Cleaning (0.543)
+    \item Beer Gardens (0.541)
+\end{itemize}
+
+Top 3 downward categories:
+\begin{itemize}
+    \item Medical Centers (0.566)
+    \item Walk-in Clinics (0.554)
+    \item Eyelash Service (0.550)
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/q2_trend_consistency_bars.png}
+    \caption{Q2 bar plot: consistency ratios for most upward/downward categories.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/q2_selected_category_monthly_lines.png}
+    \caption{Q2 line plot: monthly trajectories for selected categories.}
+\end{figure}
+
+Interpretation:
+\begin{itemize}
+    \item Directional consistency exists, but no category is fully monotonic.
+    \item Both upward and downward groups show meaningful month-to-month volatility.
+\end{itemize}
+
+\subsection*{Q3: Check-in Class Cross-tabulation}
+Businesses are classified into low/medium/high check-in classes using quartiles from check-in counts (Q1=6, Q3=72). For each top-10 category by total review count, metrics are computed by class: mean stars, mean review count, and tips-to-reviews ratio.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/q3_tips_reviews_heatmap.png}
+    \caption{Q3 heatmap: tips-to-reviews ratio by category and check-in class.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/q3_mean_star_by_class.png}
+    \caption{Q3 bar plot: mean stars by check-in class across top categories.}
+\end{figure}
+
+Interpretation:
+\begin{itemize}
+    \item High check-in businesses generally have substantially higher mean review volumes.
+    \item Tips-to-reviews intensity is commonly strongest in the high check-in group.
+\end{itemize}
+
+\section{Neo4j / Cypher Querying}
+
+\subsection*{Workflow and Execution}
+The full Neo4j Part 2 pipeline is implemented in \texttt{queries/p2\_neo4j.py}. It writes all Cypher/GDS statements to file, executes each section, and stores outputs/figures in report folders.
+
+Run sequence:
+\begin{verbatim}
+source .venv/bin/activate
+pip install -r requirements.txt
+python queries/p2_neo4j.py
+\end{verbatim}
+
+Generated artifacts:
+\begin{itemize}
+    \item Cypher/GDS statements: \texttt{queries/cypher\_part2\_queries.txt}
+    \item Data outputs: \texttt{report/p2/data/n*.csv}, \texttt{report/p2/data/n*.json}
+    \item Figures: \texttt{report/p2/figures/n*.png}
+\end{itemize}
+
+\subsection*{NQ1: PageRank on User-Business Projection}
+The query projects a directed weighted graph from users to businesses using review stars as weights and runs GDS PageRank with minimum 20 iterations.
+
+Deliverables produced by script:
+\begin{itemize}
+    \item Top-15 businesses by PageRank with review count and average stars
+    \item Spearman correlations: PageRank vs review-count ranking; PageRank vs average-star ranking
+    \item Rank-gap analysis for businesses over/under-ranked by PageRank vs simple metrics
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/n1_top15_pagerank_bar.png}
+    \caption{NQ1: Top 15 businesses by PageRank score.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/n1_pagerank_vs_reviewcount_scatter.png}
+    \caption{NQ1: PageRank score vs review count.}
+\end{figure}
+
+\subsection*{NQ2: Louvain Community Detection}
+The script runs Louvain on the \texttt{FRIENDS\_WITH} social graph, filters communities with at least 25 members, and computes top states, top categories, and geographic concentration index (GCI).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/n2_top10_geo_concentration.png}
+    \caption{NQ2: Top communities by geographic concentration index.}
+\end{figure}
+
+\subsection*{NQ3: Node Similarity (Jaccard) for Market Saturation}
+Node Similarity is run on business nodes via shared reviewer neighborhoods. Threshold starts at 5 common reviewers and falls back to 4 or 3 if needed. Results include top-5 most saturated and top-5 most fragmented city-category combinations, excluding combinations with fewer than 5 businesses.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/n3_market_saturation_top_bottom.png}
+    \caption{NQ3: Most saturated and most fragmented city-category combinations.}
+\end{figure}
+
+The script also computes mean stars, standard deviation of stars, and mean review count for the most and least saturated combinations.
+
+\subsection*{NQ4: Betweenness vs Degree Centrality}
+Betweenness and degree are computed on the social graph. The top-20 overlap is reported, and high-betweenness-low-degree users are compared against high-degree users on review count, distinct cities reviewed, and distinct categories reviewed.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/n4_group_comparison_bar.png}
+    \caption{NQ4: Group-level comparison for centrality-defined user sets.}
+\end{figure}
+
+\subsection*{NQ5: Link Prediction Pipeline for Recommendations}
+The script builds a chronological holdout (each user's latest edge as test), runs a GDS link prediction pipeline, and reports AUC-ROC, Precision@10, top predictive features, and top-3 recommendations for 5 sampled users.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{figures/n5_lp_metrics_bar.png}
+    \caption{NQ5: Link prediction evaluation metrics.}
+\end{figure}
+
+\section{Complete Query Statements}
+
+\subsection*{MongoDB Aggregation Pipelines}
+\VerbatimInput[fontsize=\scriptsize]{../../queries/mongo_part2_queries.txt}
+
+\subsection*{Neo4j Cypher and GDS Statements}
+\VerbatimInput[fontsize=\scriptsize]{../../queries/cypher_part2_queries.txt}
+
+\section{Artifact Index}
+\begin{itemize}
+    \item Mongo script: \texttt{queries/p2\_mongo.py}
+    \item Neo4j script: \texttt{queries/p2\_neo4j.py}
+    \item Mongo queries: \texttt{queries/mongo\_part2\_queries.txt}
+    \item Neo4j queries: \texttt{queries/cypher\_part2\_queries.txt}
+    \item Data outputs: \texttt{report/p2/data/}
+    \item Figures: \texttt{report/p2/figures/}
+\end{itemize}
+
+\end{document}

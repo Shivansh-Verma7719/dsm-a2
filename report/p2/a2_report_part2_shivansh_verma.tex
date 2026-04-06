@@ -27,32 +27,24 @@
 
 \section{MongoDB Querying}
 
-\subsection*{Workflow and Execution}
-The full MongoDB Part 2 pipeline is implemented in \texttt{queries/p2\_mongo.py}. It writes complete aggregation pipelines, executes all required queries, saves tabular outputs, and generates visualizations.
-
-Run sequence:
-\begin{verbatim}
-source .venv/bin/activate
-pip install -r requirements.txt
-python queries/p2_mongo.py
-\end{verbatim}
-
-Generated artifacts:
-\begin{itemize}
-    \item Pipelines: \texttt{queries/mongo\_part2\_queries.txt}
-    \item Data outputs: \texttt{report/p2/data/mongo/q*.csv}, \texttt{report/p2/data/mongo/q*.json}
-    \item Figures: \texttt{report/p2/figures/mongo/q*.png}
-\end{itemize}
 
 \subsection*{Q1: Cohort Analysis of User Reviewing Behaviour}
-Cohorts are defined by year of \texttt{users.yelping\_since}. For each cohort, the query computes mean and standard deviation of stars, mean review character length, mean useful votes per review, and star-bucket proportions.
+Cohorts are defined by the year in each user's yelping-since profile field. For each cohort, I computed mean and standard deviation of stars, mean review character length, mean useful votes per review, and star-bucket proportions.
 
-Key outputs from \texttt{q1\_summary.json}:
-\begin{itemize}
-    \item Highest mean star cohort: \textbf{2005} (\textbf{3.903})
-    \item Highest mean useful-votes cohort: \textbf{2004} (\textbf{2.276})
-    \item Total cohorts: \textbf{19}
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Q1 Metric} & \textbf{Value} \\
+\midrule
+Highest mean-star cohort & 2005 (3.903) \\
+Highest mean useful-votes cohort & 2004 (2.276) \\
+Total cohorts & 19 \\
+\bottomrule
+\end{tabular}
+\caption{Q1 summary statistics.}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -75,19 +67,23 @@ Interpretation:
 \subsection*{Q2: Month-over-Month Trend Consistency by Category}
 For each category with at least 500 reviews, monthly average stars are computed and consistency is measured as the proportion of consecutive month-pairs with increase/decrease.
 
-Top 3 upward categories:
-\begin{itemize}
-    \item Japanese Curry (0.544)
-    \item Home Cleaning (0.543)
-    \item Beer Gardens (0.541)
-\end{itemize}
-
-Top 3 downward categories:
-\begin{itemize}
-    \item Medical Centers (0.566)
-    \item Walk-in Clinics (0.554)
-    \item Eyelash Service (0.550)
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Direction} & \textbf{Category} & \textbf{Consistency Ratio} \\
+\midrule
+Upward & Japanese Curry & 0.544 \\
+Upward & Home Cleaning & 0.543 \\
+Upward & Beer Gardens & 0.541 \\
+Downward & Medical Centers & 0.566 \\
+Downward & Walk-in Clinics & 0.554 \\
+Downward & Eyelash Service & 0.550 \\
+\bottomrule
+\end{tabular}
+\caption{Q2 most consistent upward and downward category trends.}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -139,8 +135,8 @@ Part 2 includes graph analytics and predictive modelling workloads that are expe
 
 Using one canonical subset avoids dataset drift between tasks and ensures that model features, graph structures, and exploratory results are all computed from the same entity universe.
 
-\subsection*{Subset Construction Pipeline (ETL)}
-The subset is created by \texttt{etl/build\_shared\_subset.py}. The logic is deterministic given parameters and follows these steps:
+\subsection*{Subset Construction Pipeline}
+I constructed a shared subset with fixed rules and a deterministic sampling process. The workflow was:
 \begin{enumerate}
     \item Scan businesses and keep only valid candidates (non-empty state/city/categories, minimum review count, optional check-in constraint).
     \item Allocate a target business budget across top states using proportional quotas with a minimum floor per state.
@@ -154,23 +150,55 @@ The subset is created by \texttt{etl/build\_shared\_subset.py}. The logic is det
 This produces a smaller but structurally consistent induced multi-collection/multi-graph dataset.
 
 \subsection*{Subset Configuration and Resulting Size}
-From \texttt{data/subset\_shared/subset\_manifest.json} (subset name: \texttt{shared\_v1}):
-\begin{itemize}
-    \item \textbf{Parameters:} target businesses=6000, max states=12, min businesses/state=250, min business review count=15, max reviews/business=120.
-    \item \textbf{Counts:} businesses=6000, reviews=437582, users=289869, check-ins=5634, tips=147910.
-\end{itemize}
+\begin{table}[H]
+\centering
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\small
+\textbf{Subset Construction Parameters}\\[4pt]
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Target businesses & 6000 \\
+Max states & 12 \\
+Min businesses per state & 250 \\
+Min business review count & 15 \\
+Max reviews per business & 120 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\small
+\textbf{Subset Resulting Counts}\\[4pt]
+\begin{tabular}{ll}
+\toprule
+\textbf{Entity} & \textbf{Count} \\
+\midrule
+Businesses & 6,000 \\
+Reviews & 437,582 \\
+Users & 289,869 \\
+Check-ins & 5,634 \\
+Tips & 147,910 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\caption{Shared subset configuration and resulting size.}
+\end{table}
 
 State quota allocation preserved geographic spread while still emphasizing high-signal states. Largest state allocations were PA (1250) and FL (1054), with additional representation from TN, IN, MO, LA, AZ, NV, NJ, CA, ID, and AB.
 
 \subsection*{Why This Matters for the Report}
-All Neo4j and predictive modelling results reported below are executed on this shared subset namespace (\texttt{subset\_shared}), not on the full original graph, to keep conclusions internally consistent.
+All Neo4j and predictive modelling results below were run on this same shared subset (not on the full original dump), so the findings are internally consistent across sections.
 
 \section{Neo4j / Cypher Querying}
 
 \subsection*{NQ1: PageRank on User-Business Projection}
 The query projects a directed weighted graph from users to businesses using review stars as weights and runs GDS PageRank with minimum 20 iterations.
 
-Deliverables produced by script:
+Outputs used for analysis:
 \begin{itemize}
     \item Top-15 businesses by PageRank with review count and average stars
     \item Spearman correlations: PageRank vs review-count ranking; PageRank vs average-star ranking
@@ -189,12 +217,20 @@ Deliverables produced by script:
     \caption{NQ1: PageRank score vs review count.}
 \end{figure}
 
-Key findings (\texttt{n1\_summary.json}):
-\begin{itemize}
-    \item Spearman correlation(PageRank, review count) = \textbf{0.929}, indicating strong agreement between authority and volume.
-    \item Spearman correlation(PageRank, average stars) = \textbf{0.085}, suggesting weak monotonic dependence on mean rating.
-    \item Top-ranked business by PageRank: \textbf{Fiori Per Te}.
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{NQ1 Metric} & \textbf{Value} \\
+\midrule
+Spearman(PageRank, review count) & 0.929 \\
+Spearman(PageRank, average stars) & 0.085 \\
+Top-ranked business by PageRank & Fiori Per Te \\
+\bottomrule
+\end{tabular}
+\caption{NQ1 key findings.}
+\end{table}
 
 Analytical interpretation:
 \begin{itemize}
@@ -214,7 +250,7 @@ Business insights:
 \end{itemize}
 
 \subsection*{NQ2: Louvain Community Detection}
-The script runs Louvain on the \texttt{FRIENDS\_WITH} social graph, filters communities with at least 25 members, and computes top states, top categories, and geographic concentration index (GCI).
+I ran Louvain on the friendship graph, filtered communities with at least 25 members, and profiled each community by top states, top categories, and geographic concentration index (GCI).
 
 \begin{figure}[H]
     \centering
@@ -222,13 +258,21 @@ The script runs Louvain on the \texttt{FRIENDS\_WITH} social graph, filters comm
     \caption{NQ2: Top communities by geographic concentration index.}
 \end{figure}
 
-Key findings (\texttt{n2\_summary.json}):
-\begin{itemize}
-    \item Communities with size $\geq 25$: \textbf{19}
-    \item Most geographically concentrated community: \textbf{12480} with GCI \textbf{0.979}
-    \item Least concentrated community: \textbf{7449} with GCI \textbf{0.171}
-    \item Selected projection threshold: \texttt{min\_reviews = 10}
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{NQ2 Metric} & \textbf{Value} \\
+\midrule
+Communities with size $\geq 25$ & 19 \\
+Most concentrated community (GCI) & 12480 (0.979) \\
+Least concentrated community (GCI) & 7449 (0.171) \\
+Selected projection threshold & Minimum 10 reviews \\
+\bottomrule
+\end{tabular}
+\caption{NQ2 key findings.}
+\end{table}
 
 Analytical interpretation:
 \begin{itemize}
@@ -252,20 +296,28 @@ Node Similarity is run on business nodes via shared reviewer neighborhoods. Thre
     \caption{NQ3: Most saturated and most fragmented city-category combinations.}
 \end{figure}
 
-Key findings (\texttt{n3\_summary.json}):
-\begin{itemize}
-    \item NodeSimilarity configuration used: \texttt{top\_k=5}, \texttt{min\_common\_reviewers=5}
-    \item Most saturated combo: \textbf{Philadelphia | Arts \& Crafts} (mean similarity \textbf{0.203})
-    \item Most fragmented combo: \textbf{Indianapolis | Event Planning \& Services} (mean similarity \textbf{0.000})
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{NQ3 Metric} & \textbf{Value} \\
+\midrule
+NodeSimilarity setting & top-k 5, min common reviewers 5 \\
+Most saturated combo & Philadelphia | Arts \& Crafts (0.203) \\
+Most fragmented combo & Indianapolis | Event Planning \& Services (0.000) \\
+\bottomrule
+\end{tabular}
+\caption{NQ3 key findings.}
+\end{table}
 
-The script also computes mean stars, star spread, and mean review count for the most and least saturated combinations.
+I also compared mean stars, star spread, and mean review count for the most and least saturated combinations.
 
 Analytical interpretation:
 \begin{itemize}
     \item Saturation (high intra-category audience overlap) appears in narrow pockets. Example: Philadelphia | Arts \& Crafts has mean similarity \textbf{0.203}.
     \item Many city-category pairs have similarity near zero, including several Event Planning \& Services combinations. This indicates fragmented demand where different businesses draw largely distinct reviewers.
-    \item Comparing the extreme pairs in \texttt{n3\_extreme\_combo\_business\_metrics.csv}:
+    \item Comparing the extreme pairs:
     \begin{itemize}
         \item Saturated pair (Philadelphia | Arts \& Crafts): mean stars \textbf{4.08}, star standard deviation \textbf{0.845}, mean review count \textbf{112.9}.
         \item Fragmented pair (Indianapolis | Event Planning \& Services): mean stars \textbf{4.13}, star standard deviation \textbf{0.701}, mean review count \textbf{188.0}.
@@ -288,12 +340,21 @@ Betweenness and degree are computed on the social graph. The top-20 overlap is r
     \caption{NQ4: Group-level comparison for centrality-defined user sets.}
 \end{figure}
 
-Key findings (\texttt{n4\_summary.json}):
-\begin{itemize}
-    \item Top-20 overlap between betweenness and degree lists: \textbf{16} users
-    \item High-betweenness-but-not-top-degree users: \textbf{4}
-    \item These users show lower mean review count (973.5 vs 1559.25) but broader category spread (128.25 vs 96.2) than high-degree users.
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{NQ4 Metric} & \textbf{Value} \\
+\midrule
+Top-20 overlap (betweenness vs degree) & 16 users \\
+High-betweenness but not top-degree users & 4 users \\
+Mean review count (bridge vs high-degree) & 973.5 vs 1559.25 \\
+Mean category breadth (bridge vs high-degree) & 128.25 vs 96.2 \\
+\bottomrule
+\end{tabular}
+\caption{NQ4 key findings.}
+\end{table}
 
 Analytical interpretation:
 \begin{itemize}
@@ -315,50 +376,134 @@ Business insights:
 \end{itemize}
 
 \subsection*{NQ5: Link Prediction Pipeline for Recommendations}
-NQ5 implementation is present in \texttt{queries/p2\_neo4j.py} and builds a per-user chronological train/test split over \texttt{REVIEWED\_BIZ} edges before running a GDS link prediction pipeline.
+For NQ5, I used a GDS link prediction pipeline over a bipartite User-Business graph where ``visit'' is modeled by writing a review. The final run follows the required chronological holdout policy: each user's most recent review is marked as test.
 
-At report freeze time, NQ5 remained \textbf{incomplete} due GDS-version procedure/configuration incompatibilities in the local Neo4j setup. The latest failure recorded in \texttt{report/p2/data/neo4j/n5\_summary.json} is:
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{NQ5 Metric} & \textbf{Value} \\
+\midrule
+AUC-ROC & 0.704 \\
+Precision@10 & 0.0035 \\
+Split method & Per-user most recent review as test \\
+Fallback thresholds & User 20 reviews, business 10 reviews \\
+Evaluation cap / prediction pool & 200 users / topN 6000 \\
+Coverage & 200 evaluated, 145 with predictions \\
+\bottomrule
+\end{tabular}
+\caption{NQ5 evaluation summary.}
+\end{table}
+
+Five most predictive features used by the final recommendation model:
 \begin{itemize}
-    \item \texttt{Unexpected configuration key: undirectedRelationshipTypes} during \texttt{gds.graph.project.cypher}
+    \item HADAMARD interaction over FastRP embeddings
+    \item COSINE interaction over FastRP embeddings
+    \item L2 distance interaction over FastRP embeddings
+    \item FastRP node embedding representation (64 dimensions)
+    \item Logistic regression scoring layer
 \end{itemize}
 
-Therefore, stable NQ5 evaluation artifacts (AUC-ROC/Precision@10 and recommendation samples) are not included in this submission snapshot.
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Sampled User} & \textbf{Top-3 Recommendations} \\
+\midrule
+-FZBTk... & Tucson Asian Rejuvenation Massage Spa; Honky Tonk Central; The Tampa Riverwalk \\
+-G7Zk... & Carvana Philadelphia; Clayton's Hunting \& Fishing; Frontier \\
+0G-QF... & Le Jouet; Casablanca Restaurant; The Home Depot \\
+0Igx-... & Erzulie's; Road Kill; Trader Joe's \\
+0zDHi... & New Orleans Museum of Art; Taj Mahal Indian Cuisine; Jamie Hayes Gallery \\
+\bottomrule
+\end{tabularx}
+\caption{Top-3 recommendations for five sampled users (NQ5).}
+\end{table}
+
+Improvements applied:
+\begin{itemize}
+    \item Enforced strict bipartite user-to-business prediction constraints to avoid invalid pair types.
+    \item Switched to an evaluation cohort of users with both train and test edges.
+    \item Increased a bounded prediction pool and then computed per-user top-10 ranking.
+    \item Computed Precision@10 over all evaluation users, assigning zero to users without returned predictions.
+\end{itemize}
+
+Interpretation:
+\begin{itemize}
+    \item AUC-ROC is moderate (0.704), showing the model has some discrimination ability on scored candidates.
+    \item Precision@10 remains very low (0.0035), indicating weak per-user recommendation usefulness in the current configuration.
+    \item Only 145 of 200 evaluation users received scored recommendations in the returned pool, which directly depresses Precision@10 under the assignment-consistent averaging rule.
+    \item In the final setup, user-business affinity signals dominate because the model primarily learns from interaction structure and embedding-based similarity in the bipartite graph.
+    \item Social-graph influence is comparatively weak in this NQ5 run because explicit friend-network features are not directly injected into the prediction stage; this is likely one reason why ranking quality at top-10 remains limited despite reasonable global discrimination.
+\end{itemize}
 
 \section{Predictive Modelling}
 
 \subsection*{Objective and Data Scope}
-Goal: predict the number of useful votes for each review (regression target: \texttt{target\_useful}).
+Goal: predict the number of useful votes each review receives.
 
-Data source is the shared materialized subset (\texttt{shared\_v1}) used throughout Part 2. The feature build metadata confirms:
+Data source is the same shared subset used throughout Part 2. The final modeling table contains:
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Predictive Data Metric} & \textbf{Value} \\
+\midrule
+Rows & 437,579 reviews \\
+Columns & 30 \\
+Source & Shared Yelp subset used in Part 2 \\
+\bottomrule
+\end{tabular}
+\caption{Predictive modelling data scope.}
+\end{table}
+
+\subsection*{Subset Distribution Diagnostics}
+To understand target skew before modeling, I analyzed the distribution diagnostics:
 \begin{itemize}
-    \item dataset rows: \textbf{437,579} reviews
-    \item dataset columns: \textbf{30}
-    \item source DB: \texttt{yelp\_db\_subset\_shared}
+    \item bucket-level count matrix
+    \item distribution summary statistics
 \end{itemize}
 
-\subsection*{Subset Distribution Diagnostics (Exported)}
-The training script exports distribution diagnostics for report traceability:
-\begin{itemize}
-    \item \texttt{data\_bucket\_distribution\_matrix.csv}
-    \item \texttt{data\_distribution\_summary.json}
-\end{itemize}
-
-From \texttt{data\_distribution\_summary.json}, the target is strongly right-skewed:
-\begin{itemize}
-    \item mean useful votes: \textbf{1.471}
-    \item median: \textbf{0}
-    \item p95: \textbf{6}
-    \item p99: \textbf{14}
-    \item max: \textbf{539}
-\end{itemize}
-
-Test-set stratification (required buckets) from \texttt{data\_bucket\_distribution\_matrix.csv}:
-\begin{itemize}
-    \item 0: \textbf{45,246} (51.70\%)
-    \item 1--5: \textbf{37,045} (42.33\%)
-    \item 6--20: \textbf{4,854} (5.55\%)
-    \item 21+: \textbf{371} (0.42\%)
-\end{itemize}
+The target is strongly right-skewed:
+\begin{table}[H]
+\centering
+\begin{minipage}[t]{0.46\textwidth}
+\centering
+\small
+\textbf{Target Distribution Summary}\\[4pt]
+\begin{tabular}{ll}
+\toprule
+\textbf{Statistic} & \textbf{Value} \\
+\midrule
+Mean & 1.471 \\
+Median & 0 \\
+P95 & 6 \\
+P99 & 14 \\
+Max & 539 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.50\textwidth}
+\centering
+\small
+\textbf{Test-set Stratification (Required Buckets)}\\[4pt]
+\begin{tabular}{lll}
+\toprule
+\textbf{Bucket} & \textbf{Count} & \textbf{Share} \\
+\midrule
+0 & 45,246 & 51.70\% \\
+1--5 & 37,045 & 42.33\% \\
+6--20 & 4,854 & 5.55\% \\
+21+ & 371 & 0.42\% \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\caption{Useful-vote distribution and stratified test-set composition.}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -382,33 +527,33 @@ The assignment requires review-level, user-level, and graph-derived features. Th
 \toprule
 \textbf{Feature} & \textbf{Source} & \textbf{Definition / Formula} \\
 \midrule
-\texttt{review\_stars} & Mongo reviews & Star rating of the review. \\
-\texttt{review\_text\_len} & Mongo reviews & Character length of review text. \\
-\texttt{review\_word\_count} & Mongo reviews & Token count in review text. \\
-\texttt{review\_recency\_days} & Mongo reviews & Days from review date to latest review date in subset. \\
-\texttt{user\_review\_count} & Mongo users & Total historical reviews by user profile. \\
-\texttt{user\_tenure\_days} & Mongo users + review date & Review date minus user \texttt{yelping\_since}. \\
-\texttt{user\_elite\_years\_count} & Mongo users & Number of elite years listed for user. \\
-\texttt{user\_friends\_count} & Mongo users & Friend-list length after subset pruning. \\
-\texttt{business\_review\_count} & Mongo businesses & Historical business review volume. \\
-\texttt{business\_average\_stars} & Mongo businesses & Profile-level mean business stars. \\
-\texttt{graph\_user\_degree} & Neo4j graph & User degree in FRIENDS\_WITH social graph. \\
-\texttt{graph\_user\_community\_size} & Neo4j NQ2 output & Louvain community size linked via user community id. \\
-\texttt{graph\_user\_community\_gci} & Neo4j NQ2 output & Geographic concentration index of user community. \\
-\texttt{graph\_business\_city\_category\_similarity} & Neo4j NQ3 output & Mean city-category intra-category reviewer similarity (saturation proxy). \\
-\texttt{user\_reviews\_per\_tenure\_day} & Engineered & \texttt{user\_review\_count / (user\_tenure\_days + 1)}. \\
-\texttt{review\_star\_x\_business\_avg} & Engineered & Interaction: review stars $\times$ business average stars. \\
-\texttt{business\_popularity\_x\_saturation} & Engineered & \texttt{business\_review\_count $\times$ graph\_business\_city\_category\_similarity}. \\
+review stars & Mongo reviews & Star rating of the review. \\
+review text length & Mongo reviews & Character length of review text. \\
+review word count & Mongo reviews & Token count in review text. \\
+review recency (days) & Mongo reviews & Days from review date to latest review date in subset. \\
+user review count & Mongo users & Total historical reviews by user profile. \\
+user tenure (days) & Mongo users + review date & Review date minus user yelping-since date. \\
+user elite years count & Mongo users & Number of elite years listed for user. \\
+user friends count & Mongo users & Friend-list length after subset pruning. \\
+business review count & Mongo businesses & Historical business review volume. \\
+business average stars & Mongo businesses & Profile-level mean business stars. \\
+graph user degree & Neo4j graph & User degree in the friendship social graph. \\
+graph user community size & Neo4j NQ2 output & Louvain community size linked via user community id. \\
+graph user community GCI & Neo4j NQ2 output & Geographic concentration index of user community. \\
+graph business city-category similarity & Neo4j NQ3 output & Mean city-category intra-category reviewer similarity (saturation proxy). \\
+user reviews per tenure day & Engineered & user review count divided by (user tenure days + 1). \\
+review star $\times$ business average & Engineered & Interaction between review stars and business average stars. \\
+business popularity $\times$ saturation & Engineered & business review count multiplied by city-category saturation similarity. \\
 \bottomrule
 \end{tabularx}
 \caption{Predictive feature examples with data sources and formulas.}
 \end{table}
 
-Graph-feature rationale (assignment requirement):
+Graph-feature rationale:
 \begin{itemize}
-    \item \texttt{graph\_user\_degree}: users with denser social neighborhoods plausibly produce reviews with broader exposure.
-    \item \texttt{graph\_user\_community\_gci}: community structure/geographic concentration can influence downstream visibility and relevance.
-    \item \texttt{graph\_business\_city\_category\_similarity}: market saturation affects how comparable and discoverable reviews are within category-city niches.
+    \item Graph user degree: users with denser social neighborhoods plausibly produce reviews with broader exposure.
+    \item Graph user community GCI: community structure and geographic concentration can influence downstream visibility and relevance.
+    \item Graph business city-category similarity: market saturation affects how comparable and discoverable reviews are within category-city niches.
 \end{itemize}
 
 \subsection*{Modelling Strategy and Methods}
@@ -425,7 +570,7 @@ Train/test split follows the required stratification buckets: \{0, 1--5, 6--20, 
 Model objective selection used minimum RMSE on the held-out test set. Feature importance is reported via permutation importance (on sampled test rows) for interpretability.
 
 \subsection*{Model Comparison and Final Selection}
-Model matrix was exported to \texttt{model\_metrics\_matrix\_2d.csv} and visualized using \texttt{model\_comparison\_metrics\_lines.png}.
+I compared candidate models using a consolidated metrics matrix and a line-chart visualization of RMSE, MAE, and $R^2$.
 
 \begin{figure}[H]
     \centering
@@ -434,21 +579,39 @@ Model matrix was exported to \texttt{model\_metrics\_matrix\_2d.csv} and visuali
 \end{figure}
 
 Best model selected: \textbf{blend\_hgbp\_hurdle}
-\begin{itemize}
-    \item RMSE: \textbf{2.9204}
-    \item MAE: \textbf{1.3394}
-    \item R\textsuperscript{2}: \textbf{0.2911}
-\end{itemize}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+RMSE & 2.9204 \\
+MAE & 1.3394 \\
+$R^2$ & 0.2911 \\
+\bottomrule
+\end{tabular}
+\caption{Final predictive model performance.}
+\end{table}
 
-The blend achieved the lowest RMSE among all candidates, slightly improving over the best single model (\texttt{hist\_gbr\_poisson}).
+The blend achieved the lowest RMSE among all candidates, slightly improving over the best single gradient-boosting model.
 
 \subsection*{Required Bucket-wise Evaluation}
-From \texttt{bucket\_metrics.csv} (required groups: 0, 1--5, 6+):
-\begin{itemize}
-    \item \textbf{0 useful votes}: RMSE 1.3312, MAE 0.8937
-    \item \textbf{1--5 useful votes}: RMSE 1.7067, MAE 1.1706
-    \item \textbf{6+ useful votes}: RMSE 10.3371, MAE 6.3953
-\end{itemize}
+Bucket-wise results (required groups: 0, 1--5, 6+):
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Bucket} & \textbf{RMSE} & \textbf{MAE} \\
+\midrule
+0 useful votes & 1.3312 & 0.8937 \\
+1--5 useful votes & 1.7067 & 1.1706 \\
+6+ useful votes & 10.3371 & 6.3953 \\
+\bottomrule
+\end{tabular}
+\caption{Bucket-wise predictive performance.}
+\end{table}
 
 \begin{figure}[H]
     \centering
@@ -478,12 +641,21 @@ Interpretation:
 The scatter and residual plots show central-mass fit quality but persistent tail underfit in high useful-vote reviews, consistent with bucket-wise results.
 
 \subsection*{Feature Importance and Discussion}
-Top-3 predictive features (permutation importance, \texttt{feature\_importance.csv}):
-\begin{itemize}
-    \item \texttt{review\_recency\_days} (0.2156)
-    \item \texttt{business\_review\_count} (0.1198)
-    \item \texttt{review\_text\_len} (0.1071)
-\end{itemize}
+Top-3 predictive features (permutation importance):
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Feature} & \textbf{Importance} \\
+\midrule
+Review recency in days & 0.2156 \\
+Business review count & 0.1198 \\
+Review text length & 0.1071 \\
+\bottomrule
+\end{tabular}
+\caption{Top-3 predictive features by permutation importance.}
+\end{table}
 
 Data-supported interpretation:
 \begin{itemize}
@@ -504,11 +676,6 @@ Data-supported interpretation:
 \textbf{Potential consequence if deployed for ranking:} an under-calibrated model may systematically under-rank niche but high-value reviews (especially from smaller businesses or less represented communities), reinforcing popularity bias toward already visible entities.
 
 \section{Query Text Files}
-The full Part 2 query text files (MongoDB and Neo4j) are included separately in the submitted ZIP package.
-
-\begin{itemize}
-    \item Mongo queries: \texttt{queries/mongo\_part2\_queries.txt}
-    \item Neo4j queries: \texttt{queries/cypher\_part2\_queries.txt}
-\end{itemize}
+Complete query statements are provided separately in the submission package.
 
 \end{document}

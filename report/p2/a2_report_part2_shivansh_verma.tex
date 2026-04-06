@@ -40,8 +40,8 @@ python queries/p2_mongo.py
 Generated artifacts:
 \begin{itemize}
     \item Pipelines: \texttt{queries/mongo\_part2\_queries.txt}
-    \item Data outputs: \texttt{report/p2/data/q*.csv}, \texttt{report/p2/data/q*.json}
-    \item Figures: \texttt{report/p2/figures/q*.png}
+    \item Data outputs: \texttt{report/p2/data/mongo/q*.csv}, \texttt{report/p2/data/mongo/q*.json}
+    \item Figures: \texttt{report/p2/figures/mongo/q*.png}
 \end{itemize}
 
 \subsection*{Q1: Cohort Analysis of User Reviewing Behaviour}
@@ -56,13 +56,13 @@ Key outputs from \texttt{q1\_summary.json}:
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{figures/q1_cohort_star_heatmap.png}
+    \includegraphics[width=0.88\textwidth]{figures/mongo/q1_cohort_star_heatmap.png}
     \caption{Q1 heatmap: star proportions by cohort year.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{figures/q1_cohort_metric_lines.png}
+    \includegraphics[width=0.88\textwidth]{figures/mongo/q1_cohort_metric_lines.png}
     \caption{Q1 line plot: mean stars and mean useful votes by cohort year.}
 \end{figure}
 
@@ -91,13 +91,13 @@ Top 3 downward categories:
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{figures/q2_trend_consistency_bars.png}
+    \includegraphics[width=0.88\textwidth]{figures/mongo/q2_trend_consistency_bars.png}
     \caption{Q2 bar plot: consistency ratios for most upward/downward categories.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/q2_selected_category_monthly_lines.png}
+    \includegraphics[width=0.95\textwidth]{figures/mongo/q2_selected_category_monthly_lines.png}
     \caption{Q2 line plot: monthly trajectories for selected categories.}
 \end{figure}
 
@@ -112,13 +112,13 @@ Businesses are classified into low/medium/high check-in classes using quartiles 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{figures/q3_tips_reviews_heatmap.png}
+    \includegraphics[width=0.88\textwidth]{figures/mongo/q3_tips_reviews_heatmap.png}
     \caption{Q3 heatmap: tips-to-reviews ratio by category and check-in class.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/q3_mean_star_by_class.png}
+    \includegraphics[width=0.95\textwidth]{figures/mongo/q3_mean_star_by_class.png}
     \caption{Q3 bar plot: mean stars by check-in class across top categories.}
 \end{figure}
 
@@ -128,24 +128,44 @@ Interpretation:
     \item Tips-to-reviews intensity is commonly strongest in the high check-in group.
 \end{itemize}
 
-\section{Neo4j / Cypher Querying}
+\section{Shared Subset Construction (Used for Neo4j and Predictive Modelling)}
 
-\subsection*{Workflow and Execution}
-The full Neo4j Part 2 pipeline is implemented in \texttt{queries/p2\_neo4j.py}. It writes all Cypher/GDS statements to file, executes each section, and stores outputs/figures in report folders.
-
-Run sequence:
-\begin{verbatim}
-source .venv/bin/activate
-pip install -r requirements.txt
-python queries/p2_neo4j.py
-\end{verbatim}
-
-Generated artifacts:
+\subsection*{Why a Shared Subset Was Built}
+Part 2 includes graph analytics and predictive modelling workloads that are expensive on the full Yelp dump. To keep execution feasible and reproducible on local hardware while preserving assignment complexity, a single materialized subset was built and then reused across both downstream tracks:
 \begin{itemize}
-    \item Cypher/GDS statements: \texttt{queries/cypher\_part2\_queries.txt}
-    \item Data outputs: \texttt{report/p2/data/n*.csv}, \texttt{report/p2/data/n*.json}
-    \item Figures: \texttt{report/p2/figures/n*.png}
+    \item Neo4j + GDS querying
+    \item Predictive modelling dataset construction and evaluation
 \end{itemize}
+
+Using one canonical subset avoids dataset drift between tasks and ensures that model features, graph structures, and exploratory results are all computed from the same entity universe.
+
+\subsection*{Subset Construction Pipeline (ETL)}
+The subset is created by \texttt{etl/build\_shared\_subset.py}. The logic is deterministic given parameters and follows these steps:
+\begin{enumerate}
+    \item Scan businesses and keep only valid candidates (non-empty state/city/categories, minimum review count, optional check-in constraint).
+    \item Allocate a target business budget across top states using proportional quotas with a minimum floor per state.
+    \item Within each state, select businesses in a round-robin manner across primary categories to improve category diversity.
+    \item Keep reviews only for selected businesses, with a per-business cap.
+    \item Keep users referenced by selected reviews.
+    \item Prune each kept user's friend list to subset users only (keeps social edges coherent inside subset).
+    \item Keep check-ins and tips for selected businesses.
+\end{enumerate}
+
+This produces a smaller but structurally consistent induced multi-collection/multi-graph dataset.
+
+\subsection*{Subset Configuration and Resulting Size}
+From \texttt{data/subset\_shared/subset\_manifest.json} (subset name: \texttt{shared\_v1}):
+\begin{itemize}
+    \item \textbf{Parameters:} target businesses=6000, max states=12, min businesses/state=250, min business review count=15, max reviews/business=120.
+    \item \textbf{Counts:} businesses=6000, reviews=437582, users=289869, check-ins=5634, tips=147910.
+\end{itemize}
+
+State quota allocation preserved geographic spread while still emphasizing high-signal states. Largest state allocations were PA (1250) and FL (1054), with additional representation from TN, IN, MO, LA, AZ, NV, NJ, CA, ID, and AB.
+
+\subsection*{Why This Matters for the Report}
+All Neo4j and predictive modelling results reported below are executed on this shared subset namespace (\texttt{subset\_shared}), not on the full original graph, to keep conclusions internally consistent.
+
+\section{Neo4j / Cypher Querying}
 
 \subsection*{NQ1: PageRank on User-Business Projection}
 The query projects a directed weighted graph from users to businesses using review stars as weights and runs GDS PageRank with minimum 20 iterations.
@@ -159,70 +179,336 @@ Deliverables produced by script:
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{figures/n1_top15_pagerank_bar.png}
+    \includegraphics[width=0.92\textwidth]{figures/neo4j/n1_top15_pagerank_bar.png}
     \caption{NQ1: Top 15 businesses by PageRank score.}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.78\textwidth]{figures/n1_pagerank_vs_reviewcount_scatter.png}
+    \includegraphics[width=0.78\textwidth]{figures/neo4j/n1_pagerank_vs_reviewcount_scatter.png}
     \caption{NQ1: PageRank score vs review count.}
 \end{figure}
+
+Key findings (\texttt{n1\_summary.json}):
+\begin{itemize}
+    \item Spearman correlation(PageRank, review count) = \textbf{0.929}, indicating strong agreement between authority and volume.
+    \item Spearman correlation(PageRank, average stars) = \textbf{0.085}, suggesting weak monotonic dependence on mean rating.
+    \item Top-ranked business by PageRank: \textbf{Fiori Per Te}.
+\end{itemize}
+
+Analytical interpretation:
+\begin{itemize}
+    \item The very high PageRank vs review-count correlation indicates that in this subset, \textbf{exposure and interaction volume dominate} influence. Businesses with many inbound user interactions absorb centrality mass regardless of sentiment.
+    \item The weak PageRank vs mean-stars correlation shows that \textbf{network prominence is not equivalent to customer satisfaction}. A business can be structurally central while being poorly rated, and vice versa.
+    \item Rank-gap diagnostics reveal two distinct regimes:
+    \begin{itemize}
+        \item \textbf{Over-ranked by PageRank} (large positive gap): entities such as Dent Artist Paintless Dent Removal and Better Business Bureau Serving West Florida have moderate review counts but high graph centrality, suggesting they sit in reviewer pathways that connect active user neighborhoods.
+        \item \textbf{Under-ranked by PageRank} (large negative gap): high-volume brands such as Whole Foods Market and Walmart Supercenter receive many reviews but are less central in reviewer flow, consistent with broad but less tightly connected audience overlap.
+    \end{itemize}
+\end{itemize}
+
+Business insights:
+\begin{itemize}
+    \item For recommendation/ranking strategy, a two-signal policy is preferable: centrality for discoverability and rating for quality control.
+    \item For business growth, partnerships with highly connected reviewer segments may improve visibility faster than marginal rating improvements alone.
+\end{itemize}
 
 \subsection*{NQ2: Louvain Community Detection}
 The script runs Louvain on the \texttt{FRIENDS\_WITH} social graph, filters communities with at least 25 members, and computes top states, top categories, and geographic concentration index (GCI).
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{figures/n2_top10_geo_concentration.png}
+    \includegraphics[width=0.88\textwidth]{figures/neo4j/n2_top10_geo_concentration.png}
     \caption{NQ2: Top communities by geographic concentration index.}
 \end{figure}
+
+Key findings (\texttt{n2\_summary.json}):
+\begin{itemize}
+    \item Communities with size $\geq 25$: \textbf{19}
+    \item Most geographically concentrated community: \textbf{12480} with GCI \textbf{0.979}
+    \item Least concentrated community: \textbf{7449} with GCI \textbf{0.171}
+    \item Selected projection threshold: \texttt{min\_reviews = 10}
+\end{itemize}
+
+Analytical interpretation:
+\begin{itemize}
+    \item GCI spans a wide range (approximately \textbf{0.17 to 0.98}), which means the social graph contains both highly local and highly cross-region communities.
+    \item The most concentrated communities are nearly single-state clusters (for example community 12480 is AB-dominant), whereas the least concentrated communities distribute review activity across multiple states with no dominant geography.
+    \item Across communities, top reviewed categories repeatedly include Restaurants, Food, and Nightlife, implying that \textbf{community differentiation is more geographic than categorical}. In other words, members in different communities often consume similar category types but in different places.
+\end{itemize}
+
+Business insights:
+\begin{itemize}
+    \item Geo-targeted campaigns should prioritize high-GCI communities because local message relevance is likely to be strongest.
+    \item Cross-state expansion and referral strategies are better aligned to low-GCI communities where social influence is less geographically concentrated.
+\end{itemize}
 
 \subsection*{NQ3: Node Similarity (Jaccard) for Market Saturation}
 Node Similarity is run on business nodes via shared reviewer neighborhoods. Threshold starts at 5 common reviewers and falls back to 4 or 3 if needed. Results include top-5 most saturated and top-5 most fragmented city-category combinations, excluding combinations with fewer than 5 businesses.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/n3_market_saturation_top_bottom.png}
+    \includegraphics[width=0.95\textwidth]{figures/neo4j/n3_market_saturation_top_bottom.png}
     \caption{NQ3: Most saturated and most fragmented city-category combinations.}
 \end{figure}
 
-The script also computes mean stars, standard deviation of stars, and mean review count for the most and least saturated combinations.
+Key findings (\texttt{n3\_summary.json}):
+\begin{itemize}
+    \item NodeSimilarity configuration used: \texttt{top\_k=5}, \texttt{min\_common\_reviewers=5}
+    \item Most saturated combo: \textbf{Philadelphia | Arts \& Crafts} (mean similarity \textbf{0.203})
+    \item Most fragmented combo: \textbf{Indianapolis | Event Planning \& Services} (mean similarity \textbf{0.000})
+\end{itemize}
+
+The script also computes mean stars, star spread, and mean review count for the most and least saturated combinations.
+
+Analytical interpretation:
+\begin{itemize}
+    \item Saturation (high intra-category audience overlap) appears in narrow pockets. Example: Philadelphia | Arts \& Crafts has mean similarity \textbf{0.203}.
+    \item Many city-category pairs have similarity near zero, including several Event Planning \& Services combinations. This indicates fragmented demand where different businesses draw largely distinct reviewers.
+    \item Comparing the extreme pairs in \texttt{n3\_extreme\_combo\_business\_metrics.csv}:
+    \begin{itemize}
+        \item Saturated pair (Philadelphia | Arts \& Crafts): mean stars \textbf{4.08}, star standard deviation \textbf{0.845}, mean review count \textbf{112.9}.
+        \item Fragmented pair (Indianapolis | Event Planning \& Services): mean stars \textbf{4.13}, star standard deviation \textbf{0.701}, mean review count \textbf{188.0}.
+    \end{itemize}
+    \item In this sample, the saturated market has \textbf{higher rating variance but lower average review volume}. This supports the interpretation that direct audience overlap can intensify competitive differentiation while limiting per-business attention.
+\end{itemize}
+
+Business insights:
+\begin{itemize}
+    \item Entering saturated categories requires sharper positioning because consumers compare overlapping options directly.
+    \item Entering fragmented categories may benefit from local niche capture and channel-specific acquisition rather than direct head-to-head brand competition.
+\end{itemize}
 
 \subsection*{NQ4: Betweenness vs Degree Centrality}
 Betweenness and degree are computed on the social graph. The top-20 overlap is reported, and high-betweenness-low-degree users are compared against high-degree users on review count, distinct cities reviewed, and distinct categories reviewed.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{figures/n4_group_comparison_bar.png}
+    \includegraphics[width=0.9\textwidth]{figures/neo4j/n4_group_comparison_bar.png}
     \caption{NQ4: Group-level comparison for centrality-defined user sets.}
 \end{figure}
 
+Key findings (\texttt{n4\_summary.json}):
+\begin{itemize}
+    \item Top-20 overlap between betweenness and degree lists: \textbf{16} users
+    \item High-betweenness-but-not-top-degree users: \textbf{4}
+    \item These users show lower mean review count (973.5 vs 1559.25) but broader category spread (128.25 vs 96.2) than high-degree users.
+\end{itemize}
+
+Analytical interpretation:
+\begin{itemize}
+    \item The 16/20 overlap confirms that many hubs are also bridges, but the 4 non-overlapping high-betweenness users are analytically important.
+    \item Those bridge users are \textbf{Isabella, Marcia, Aimee, and Ophelia} (present in top betweenness but not top degree). Their profile suggests connector behavior: fewer total links than hub users, but links that cross community boundaries.
+    \item Compared with high-degree users, they have:
+    \begin{itemize}
+        \item lower activity volume (mean review count 973.5 vs 1559.25),
+        \item lower geographic spread (4.75 vs 7.30 cities),
+        \item higher category breadth (128.25 vs 96.2 categories).
+    \end{itemize}
+    \item This pattern indicates \textbf{cross-interest bridges}: users who connect topic spaces more than they maximize local neighborhood size.
+\end{itemize}
+
+Business insights:
+\begin{itemize}
+    \item Degree alone is insufficient for influence seeding. Campaigns should include betweenness-heavy connectors for cross-community diffusion.
+    \item Category-diverse connectors are valuable for introducing new categories or cross-selling between adjacent verticals.
+\end{itemize}
+
 \subsection*{NQ5: Link Prediction Pipeline for Recommendations}
-The script builds a chronological holdout (each user's latest edge as test), runs a GDS link prediction pipeline, and reports AUC-ROC, Precision@10, top predictive features, and top-3 recommendations for 5 sampled users.
+NQ5 implementation is present in \texttt{queries/p2\_neo4j.py} and builds a per-user chronological train/test split over \texttt{REVIEWED\_BIZ} edges before running a GDS link prediction pipeline.
+
+At report freeze time, NQ5 remained \textbf{incomplete} due GDS-version procedure/configuration incompatibilities in the local Neo4j setup. The latest failure recorded in \texttt{report/p2/data/neo4j/n5\_summary.json} is:
+\begin{itemize}
+    \item \texttt{Unexpected configuration key: undirectedRelationshipTypes} during \texttt{gds.graph.project.cypher}
+\end{itemize}
+
+Therefore, stable NQ5 evaluation artifacts (AUC-ROC/Precision@10 and recommendation samples) are not included in this submission snapshot.
+
+\section{Predictive Modelling}
+
+\subsection*{Objective and Data Scope}
+Goal: predict the number of useful votes for each review (regression target: \texttt{target\_useful}).
+
+Data source is the shared materialized subset (\texttt{shared\_v1}) used throughout Part 2. The feature build metadata confirms:
+\begin{itemize}
+    \item dataset rows: \textbf{437,579} reviews
+    \item dataset columns: \textbf{30}
+    \item source DB: \texttt{yelp\_db\_subset\_shared}
+\end{itemize}
+
+\subsection*{Subset Distribution Diagnostics (Exported)}
+The training script exports distribution diagnostics for report traceability:
+\begin{itemize}
+    \item \texttt{data\_bucket\_distribution\_matrix.csv}
+    \item \texttt{data\_distribution\_summary.json}
+\end{itemize}
+
+From \texttt{data\_distribution\_summary.json}, the target is strongly right-skewed:
+\begin{itemize}
+    \item mean useful votes: \textbf{1.471}
+    \item median: \textbf{0}
+    \item p95: \textbf{6}
+    \item p99: \textbf{14}
+    \item max: \textbf{539}
+\end{itemize}
+
+Test-set stratification (required buckets) from \texttt{data\_bucket\_distribution\_matrix.csv}:
+\begin{itemize}
+    \item 0: \textbf{45,246} (51.70\%)
+    \item 1--5: \textbf{37,045} (42.33\%)
+    \item 6--20: \textbf{4,854} (5.55\%)
+    \item 21+: \textbf{371} (0.42\%)
+\end{itemize}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.65\textwidth]{figures/n5_lp_metrics_bar.png}
-    \caption{NQ5: Link prediction evaluation metrics.}
+    \includegraphics[width=0.62\textwidth]{figures/predictive_modelling/test_bucket_distribution_log.png}
+    \caption{Predictive modelling: test-set bucket distribution (log scale).}
 \end{figure}
 
-\section{Complete Query Statements}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{figures/predictive_modelling/target_distribution_train_vs_test.png}
+    \caption{Predictive modelling: train vs test target distribution.}
+\end{figure}
 
-\subsection*{MongoDB Aggregation Pipelines}
-\VerbatimInput[fontsize=\scriptsize]{../../queries/mongo_part2_queries.txt}
+\subsection*{Feature Engineering (with Source/Formula)}
+The assignment requires review-level, user-level, and graph-derived features. The final model matrix uses 28 numeric features (18 base + engineered interactions/transforms). Table below summarizes representative features and construction.
 
-\subsection*{Neo4j Cypher and GDS Statements}
-\VerbatimInput[fontsize=\scriptsize]{../../queries/cypher_part2_queries.txt}
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Feature} & \textbf{Source} & \textbf{Definition / Formula} \\
+\midrule
+\texttt{review\_stars} & Mongo reviews & Star rating of the review. \\
+\texttt{review\_text\_len} & Mongo reviews & Character length of review text. \\
+\texttt{review\_word\_count} & Mongo reviews & Token count in review text. \\
+\texttt{review\_recency\_days} & Mongo reviews & Days from review date to latest review date in subset. \\
+\texttt{user\_review\_count} & Mongo users & Total historical reviews by user profile. \\
+\texttt{user\_tenure\_days} & Mongo users + review date & Review date minus user \texttt{yelping\_since}. \\
+\texttt{user\_elite\_years\_count} & Mongo users & Number of elite years listed for user. \\
+\texttt{user\_friends\_count} & Mongo users & Friend-list length after subset pruning. \\
+\texttt{business\_review\_count} & Mongo businesses & Historical business review volume. \\
+\texttt{business\_average\_stars} & Mongo businesses & Profile-level mean business stars. \\
+\texttt{graph\_user\_degree} & Neo4j graph & User degree in FRIENDS\_WITH social graph. \\
+\texttt{graph\_user\_community\_size} & Neo4j NQ2 output & Louvain community size linked via user community id. \\
+\texttt{graph\_user\_community\_gci} & Neo4j NQ2 output & Geographic concentration index of user community. \\
+\texttt{graph\_business\_city\_category\_similarity} & Neo4j NQ3 output & Mean city-category intra-category reviewer similarity (saturation proxy). \\
+\texttt{user\_reviews\_per\_tenure\_day} & Engineered & \texttt{user\_review\_count / (user\_tenure\_days + 1)}. \\
+\texttt{review\_star\_x\_business\_avg} & Engineered & Interaction: review stars $\times$ business average stars. \\
+\texttt{business\_popularity\_x\_saturation} & Engineered & \texttt{business\_review\_count $\times$ graph\_business\_city\_category\_similarity}. \\
+\bottomrule
+\end{tabularx}
+\caption{Predictive feature examples with data sources and formulas.}
+\end{table}
 
-\section{Artifact Index}
+Graph-feature rationale (assignment requirement):
 \begin{itemize}
-    \item Mongo script: \texttt{queries/p2\_mongo.py}
-    \item Neo4j script: \texttt{queries/p2\_neo4j.py}
+    \item \texttt{graph\_user\_degree}: users with denser social neighborhoods plausibly produce reviews with broader exposure.
+    \item \texttt{graph\_user\_community\_gci}: community structure/geographic concentration can influence downstream visibility and relevance.
+    \item \texttt{graph\_business\_city\_category\_similarity}: market saturation affects how comparable and discoverable reviews are within category-city niches.
+\end{itemize}
+
+\subsection*{Modelling Strategy and Methods}
+Train/test split follows the required stratification buckets: \{0, 1--5, 6--20, 21+\}. Candidate models were evaluated in an auto-selection pipeline:
+\begin{itemize}
+    \item Histogram Gradient Boosting regressors (standard and log-target variants)
+    \item Poisson-loss gradient boosting variants
+    \item Tweedie/Poisson GLM baselines
+    \item Fast random forest baseline
+    \item Hurdle model (two-stage: classify useful$>$0, then regress positive counts)
+    \item Blend candidates combining complementary predictors
+\end{itemize}
+
+Model objective selection used minimum RMSE on the held-out test set. Feature importance is reported via permutation importance (on sampled test rows) for interpretability.
+
+\subsection*{Model Comparison and Final Selection}
+Model matrix was exported to \texttt{model\_metrics\_matrix\_2d.csv} and visualized using \texttt{model\_comparison\_metrics\_lines.png}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{figures/predictive_modelling/model_comparison_metrics_lines.png}
+    \caption{Predictive modelling: RMSE/MAE/R\textsuperscript{2} across candidate models.}
+\end{figure}
+
+Best model selected: \textbf{blend\_hgbp\_hurdle}
+\begin{itemize}
+    \item RMSE: \textbf{2.9204}
+    \item MAE: \textbf{1.3394}
+    \item R\textsuperscript{2}: \textbf{0.2911}
+\end{itemize}
+
+The blend achieved the lowest RMSE among all candidates, slightly improving over the best single model (\texttt{hist\_gbr\_poisson}).
+
+\subsection*{Required Bucket-wise Evaluation}
+From \texttt{bucket\_metrics.csv} (required groups: 0, 1--5, 6+):
+\begin{itemize}
+    \item \textbf{0 useful votes}: RMSE 1.3312, MAE 0.8937
+    \item \textbf{1--5 useful votes}: RMSE 1.7067, MAE 1.1706
+    \item \textbf{6+ useful votes}: RMSE 10.3371, MAE 6.3953
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.62\textwidth]{figures/predictive_modelling/bucket_mae_bar.png}
+    \caption{Predictive modelling: MAE by useful-vote bucket.}
+\end{figure}
+
+Interpretation:
+\begin{itemize}
+    \item Performance is strongest in the dominant low-count regime (0 and 1--5 buckets).
+    \item Error increases sharply in 6+ due to extreme sparsity and heavy-tail variance, which is expected in useful-vote prediction.
+\end{itemize}
+
+\subsection*{Prediction Diagnostics}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.62\textwidth]{figures/predictive_modelling/pred_vs_actual_scatter.png}
+    \caption{Predictive modelling: predicted vs actual useful votes.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.62\textwidth]{figures/predictive_modelling/residuals_hist.png}
+    \caption{Predictive modelling: residual distribution.}
+\end{figure}
+
+The scatter and residual plots show central-mass fit quality but persistent tail underfit in high useful-vote reviews, consistent with bucket-wise results.
+
+\subsection*{Feature Importance and Discussion}
+Top-3 predictive features (permutation importance, \texttt{feature\_importance.csv}):
+\begin{itemize}
+    \item \texttt{review\_recency\_days} (0.2156)
+    \item \texttt{business\_review\_count} (0.1198)
+    \item \texttt{review\_text\_len} (0.1071)
+\end{itemize}
+
+Data-supported interpretation:
+\begin{itemize}
+    \item \textbf{Recency} dominates, suggesting platform attention dynamics are time-sensitive (newer/temporally positioned reviews attract different engagement levels).
+    \item \textbf{Business review volume} indicates exposure effects: reviews for more visible businesses tend to receive more interactions.
+    \item \textbf{Text length} captures informational richness; longer reviews often provide more evaluative content and can attract more useful votes.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/predictive_modelling/feature_importance_bar.png}
+    \caption{Predictive modelling: top feature importances.}
+\end{figure}
+
+\subsection*{Limitation and Potential Consequence}
+\textbf{Limitation:} the target is highly imbalanced with very few extreme high-useful instances (21+), and even fewer very large values. This limits tail calibration and reduces reliability for ranking the very top reviews.
+
+\textbf{Potential consequence if deployed for ranking:} an under-calibrated model may systematically under-rank niche but high-value reviews (especially from smaller businesses or less represented communities), reinforcing popularity bias toward already visible entities.
+
+\section{Query Text Files}
+The full Part 2 query text files (MongoDB and Neo4j) are included separately in the submitted ZIP package.
+
+\begin{itemize}
     \item Mongo queries: \texttt{queries/mongo\_part2\_queries.txt}
     \item Neo4j queries: \texttt{queries/cypher\_part2\_queries.txt}
-    \item Data outputs: \texttt{report/p2/data/}
-    \item Figures: \texttt{report/p2/figures/}
 \end{itemize}
 
 \end{document}

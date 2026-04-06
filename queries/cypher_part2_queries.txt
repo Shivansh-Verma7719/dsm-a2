@@ -161,7 +161,12 @@ CALL gds.graph.project.cypher(
     'MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b:SubsetBusiness)
      WHERE coalesce(u.review_count, 0) >= $min_user_reviews
          AND coalesce(b.review_count, 0) >= $min_business_reviews
-     RETURN id(u) AS source, id(b) AS target',
+     RETURN id(u) AS source, id(b) AS target
+     UNION ALL
+     MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b:SubsetBusiness)
+     WHERE coalesce(u.review_count, 0) >= $min_user_reviews
+         AND coalesce(b.review_count, 0) >= $min_business_reviews
+     RETURN id(b) AS source, id(u) AS target',
     {parameters: {min_user_reviews: $min_user_reviews, min_business_reviews: $min_business_reviews}}
 )
 YIELD graphName, nodeCount, relationshipCount;
@@ -220,310 +225,15 @@ RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS b
 // Subset namespace hint: shared_v1
 
 // ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
+// P2-NQ3F. Business-level metrics for extreme combos
 // ==========================================
 
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 4, "min_common": 4, "degree_cutoff": 4, "upper_degree_cutoff": 90, "similarity_cutoff": 0.12}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 3, "min_common": 3, "degree_cutoff": 5, "upper_degree_cutoff": 70, "similarity_cutoff": 0.15}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 5, "min_common": 5, "degree_cutoff": 3, "upper_degree_cutoff": 120, "similarity_cutoff": 0.1}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 4, "min_common": 4, "degree_cutoff": 4, "upper_degree_cutoff": 90, "similarity_cutoff": 0.12}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 3, "min_common": 3, "degree_cutoff": 5, "upper_degree_cutoff": 70, "similarity_cutoff": 0.15}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 5, "min_common": 5, "degree_cutoff": 3, "upper_degree_cutoff": 120, "similarity_cutoff": 0.1}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 4, "min_common": 4, "degree_cutoff": 4, "upper_degree_cutoff": 90, "similarity_cutoff": 0.12}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 3, "min_common": 3, "degree_cutoff": 5, "upper_degree_cutoff": 70, "similarity_cutoff": 0.15}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 5, "min_common": 5, "degree_cutoff": 3, "upper_degree_cutoff": 120, "similarity_cutoff": 0.1}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 4, "min_common": 4, "degree_cutoff": 4, "upper_degree_cutoff": 90, "similarity_cutoff": 0.12}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E. NodeSimilarity stream (memory-aware strict configuration)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b1)
-MATCH (u)-[:SUBSET_WROTE]->(:SubsetReview)-[:SUBSET_REVIEWS]->(b2)
-WITH b1, b2, c, similarity, count(DISTINCT u) AS intersection
-WHERE intersection >= $min_common
-RETURN b1.city AS city, c.name AS category, similarity, intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 3, "min_common": 3, "degree_cutoff": 5, "upper_degree_cutoff": 70, "similarity_cutoff": 0.15}
-// Graph mode: subset
-// Subset namespace hint: shared_v1
-
-// ==========================================
-// P2-NQ3E-Fallback. NodeSimilarity stream without intersection output (reduced topK)
-// ==========================================
-
-CALL gds.nodeSimilarity.stream('p2_similarity_graph', {
-    topK: $top_k,
-    degreeCutoff: $degree_cutoff,
-    upperDegreeCutoff: $upper_degree_cutoff,
-    similarityCutoff: $similarity_cutoff
-})
-YIELD node1, node2, similarity
-WITH gds.util.asNode(node1) AS b1, gds.util.asNode(node2) AS b2, similarity
-WHERE b1:SubsetBusiness AND b2:SubsetBusiness
-    AND b1.id < b2.id
-    AND b1.city IS NOT NULL AND b2.city IS NOT NULL
-    AND b1.city = b2.city
-MATCH (b1)-[:SUBSET_IN_CATEGORY]->(c:SubsetCategory)<-[:SUBSET_IN_CATEGORY]-(b2)
-RETURN b1.city AS city, c.name AS category, similarity, 0 AS intersection, b1.id AS business_1, b2.id AS business_2;
-// Params: {"top_k": 2, "degree_cutoff": 5, "upper_degree_cutoff": 70, "similarity_cutoff": 0.18}
+MATCH (b:SubsetBusiness)-[:SUBSET_IN_CATEGORY]->(:SubsetCategory {name: $category})
+WHERE b.city = $city
+RETURN
+  avg(toFloat(coalesce(b.stars, 0.0))) AS mean_star,
+  stDev(toFloat(coalesce(b.stars, 0.0))) AS std_star,
+  avg(toFloat(coalesce(b.review_count, 0))) AS mean_review_count;
 // Graph mode: subset
 // Subset namespace hint: shared_v1
 
@@ -598,6 +308,133 @@ RETURN
   avg(profile_review_count) AS mean_review_count,
   avg(toFloat(distinct_cities)) AS mean_distinct_cities,
   avg(toFloat(distinct_categories)) AS mean_distinct_categories;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5A. Clear stale REVIEWED_BIZ edges
+// ==========================================
+
+MATCH (:SubsetUser)-[r:REVIEWED_BIZ]->(:SubsetBusiness)
+DELETE r;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5B. Build REVIEWED_BIZ edges with per-user chronological 80/20 split
+// ==========================================
+
+MATCH (u:SubsetUser)-[:SUBSET_WROTE]->(r:SubsetReview)-[:SUBSET_REVIEWS]->(b:SubsetBusiness)
+WITH u, b, max(r.date) AS last_date, avg(toFloat(r.stars)) AS weight
+WITH u, collect({business: b, last_date: last_date, weight: weight}) AS pairs
+UNWIND pairs AS p
+WITH u, p
+ORDER BY u.id, p.last_date ASC
+WITH u, collect(p) AS ordered_pairs
+WITH u, ordered_pairs, toInteger(floor(size(ordered_pairs) * 0.8)) AS train_cutoff
+UNWIND range(0, size(ordered_pairs) - 1) AS idx
+WITH u, ordered_pairs[idx] AS p, idx, train_cutoff
+MERGE (u)-[rb:REVIEWED_BIZ]->(p.business)
+SET rb.last_date = p.last_date,
+    rb.weight = p.weight,
+    rb.is_test = CASE WHEN idx >= train_cutoff THEN true ELSE false END;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5B. Drop stale LP graph/pipeline/model
+// ==========================================
+
+CALL gds.graph.drop('p2_lp_graph', false) YIELD graphName RETURN graphName
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5C. Project train graph
+// ==========================================
+
+CALL gds.graph.project.cypher(
+  'p2_lp_graph',
+  'MATCH (n) WHERE n:SubsetUser OR n:SubsetBusiness RETURN id(n) AS id, labels(n) AS labels',
+  'MATCH (u:SubsetUser)-[r:REVIEWED_BIZ]->(b:SubsetBusiness)
+   WHERE coalesce(r.is_test, false) = false
+   RETURN id(u) AS source, id(b) AS target, coalesce(r.weight, 1.0) AS weight'
+)
+YIELD graphName, nodeCount, relationshipCount;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5D. Mutate FastRP embeddings
+// ==========================================
+
+CALL gds.fastRP.mutate('p2_lp_graph', {
+  mutateProperty: 'p2_fastrp',
+  embeddingDimension: 64,
+  randomSeed: 42
+})
+YIELD nodePropertiesWritten;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5E. Create pipeline and features
+// ==========================================
+
+CALL gds.beta.pipeline.linkPrediction.create('p2_lp_pipeline') YIELD pipelineName RETURN pipelineName
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5F. Train LP model
+// ==========================================
+
+CALL gds.beta.pipeline.linkPrediction.train('p2_lp_graph', {
+  pipeline: 'p2_lp_pipeline',
+  modelName: 'p2_lp_model',
+  targetRelationshipType: 'REVIEWED_BIZ',
+  negativeSamplingRatio: 5.0,
+  randomSeed: 42
+})
+YIELD modelInfo, modelSelectionStats, metrics
+RETURN modelInfo, modelSelectionStats, metrics;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5G. Predict candidate user-business links
+// ==========================================
+
+CALL gds.beta.pipeline.linkPrediction.predict.stream('p2_lp_graph', {
+  modelName: 'p2_lp_model',
+  topN: 20
+})
+YIELD node1, node2, probability
+WITH gds.util.asNode(node1) AS n1, gds.util.asNode(node2) AS n2, probability
+WHERE n1:SubsetUser AND n2:SubsetBusiness
+RETURN n1.id AS user_id, n2.id AS business_id, n2.name AS business_name, probability
+ORDER BY user_id, probability DESC;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5H. Fetch chronological held-out test links
+// ==========================================
+
+MATCH (u:SubsetUser)-[r:REVIEWED_BIZ]->(b:SubsetBusiness)
+WHERE coalesce(r.is_test, false) = true
+RETURN u.id AS user_id, b.id AS business_id, b.name AS business_name;
+// Graph mode: subset
+// Subset namespace hint: shared_v1
+
+// ==========================================
+// P2-NQ5I. Report train/test edge split stats
+// ==========================================
+
+MATCH (:SubsetUser)-[r:REVIEWED_BIZ]->(:SubsetBusiness)
+RETURN
+  count(r) AS total_edges,
+  sum(CASE WHEN coalesce(r.is_test, false) THEN 1 ELSE 0 END) AS test_edges;
 // Graph mode: subset
 // Subset namespace hint: shared_v1
 
